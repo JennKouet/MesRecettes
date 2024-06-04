@@ -9,9 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic':
-          'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+       
+      },
+      fontFamily: {
+        'title': ['Oswald', "sans-serif"],
+        'small-title': ['Poppins-SemiBold',"sans-serif"],
+        'body': ['Roboto', "sans-serif"]
+      },
+      boxShadow: {
+        '2xl': '8px 10px 20px -5px rgba(255, 255, 255, 0.9)',
       },
     },
   },

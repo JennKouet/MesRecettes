@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Oswald } from 'next/font/google'
 import './globals.css'
+import Header from './components/Header'
 
-const inter = Inter({ subsets: ['latin'] })
+const oswald = Oswald({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Mes recettes',
@@ -16,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={oswald.className}>
+        <Header />
+        {children}
+      </body>
     </html>
   )
 }
