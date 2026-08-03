@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:seed:demo": "SEED_DEMO=1 prisma db seed"
   },
   "//dependenciesMeta": "Yarn 4 desactive les scripts de build des dependances par defaut (protection supply-chain). Allowlist explicite des paquets qui en ont reellement besoin : binaires natifs et telechargement des moteurs Prisma.",
   "dependenciesMeta": {
