@@ -9,7 +9,19 @@ import type { RecipeListItem } from "@/server/queries/recipes";
  * affiche l'initiale du titre : la grille garde ainsi la même mise en page,
  * que les recettes soient illustrées ou non.
  */
-export default function RecipeCard({ recipe }: { recipe: RecipeListItem }) {
+export default function RecipeCard({
+  recipe,
+  /**
+   * À activer pour les toutes premières cartes de la grille. Elles sont
+   * au-dessus de la ligne de flottaison et l'une d'elles est le Largest
+   * Contentful Paint : sans priorité, le navigateur les charge paresseusement
+   * et retarde la mesure.
+   */
+  priority = false,
+}: {
+  recipe: RecipeListItem;
+  priority?: boolean;
+}) {
   const totalTime = formatTotalTime(recipe.prepMinutes, recipe.cookMinutes);
 
   return (
@@ -24,6 +36,7 @@ export default function RecipeCard({ recipe }: { recipe: RecipeListItem }) {
               // Trois colonnes en large, deux en tablette, une en mobile :
               // évite de télécharger une image pleine largeur pour une vignette.
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              priority={priority}
               className="object-cover transition group-hover:scale-105"
             />
           </div>
