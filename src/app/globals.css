@@ -1,38 +1,147 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
 
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+/* ───────────────────────────────────────────────────────────────
+   Design tokens — Tailwind 4 se configure en CSS, il n'y a plus de
+   tailwind.config.ts. Chaque variable ci-dessous génère les utilitaires
+   correspondants (--color-tomate-500 → bg-tomate-500, text-tomate-500, …).
+   ─────────────────────────────────────────────────────────────── */
+@theme {
+  /* Primaire */
+  --color-tomate-50: #fdf4f1;
+  --color-tomate-100: #fae4dc;
+  --color-tomate-200: #f3c6b6;
+  --color-tomate-300: #e99f86;
+  --color-tomate-400: #dc7252;
+  --color-tomate-500: #c9502f;
+  --color-tomate-600: #a93e23;
+  --color-tomate-700: #86311c;
+  --color-tomate-800: #642619;
+  --color-tomate-900: #431b12;
 
+  /* Accent. safran-500 n'est PAS accessible en texte sur fond clair :
+     le réserver aux remplissages et bordures, utiliser safran-700 pour du texte. */
+  --color-safran-100: #fdf1dc;
+  --color-safran-300: #f4c97a;
+  --color-safran-500: #e9a13b;
+  --color-safran-700: #b87718;
+
+  /* Succès / tags végétariens */
+  --color-basilic-100: #e9f0e4;
+  --color-basilic-300: #a9c39a;
+  --color-basilic-500: #4f7942;
+  --color-basilic-700: #365429;
+
+  /* Fonds */
+  --color-creme: #fffcf6;
+  --color-creme-100: #fbf5ea;
+  --color-creme-300: #f2e7d5;
+
+  /* Texte */
+  --color-encre: #2b2119;
+  --color-encre-muted: #6e6259;
+  --color-encre-faint: #9a8f85;
+
+  --color-bordure: #eadfd1;
+
+  /* Polices — alimentées par les variables next/font posées sur <html>.
+     Remplace l'ancienne famille 'Poppins-SemiBold', qui n'était pas un nom
+     de famille CSS valide et retombait silencieusement sur sans-serif. */
+  --font-title: var(--font-oswald), ui-sans-serif, sans-serif;
+  --font-body: var(--font-poppins), ui-sans-serif, sans-serif;
+
+  --shadow-card:
+    0 1px 2px rgb(43 33 25 / 0.06), 0 8px 24px -12px rgb(43 33 25 / 0.18);
+}
+
+/* ───────────────────────────────────────────────────────────────
+   Couche de base — uniquement des défauts réellement globaux.
+   La typographie longue (paragraphes larges, pre-line) vit dans
+   .prose-recette, en opt-in, pour ne pas frapper les aides de formulaire,
+   les extraits de cartes et les messages d'erreur.
+   ─────────────────────────────────────────────────────────────── */
 @layer base {
-  h1 {
-    @apply text-4xl lg:text-6xl font-title font-bold tracking-wide py-4 text-center;
-  }
-  h2 {
-    @apply 
-      text-5xl 
-      font-small-title
-      text-center 
-      p-8 
-  }
-  h3 {
-    @apply text-3xl underline;
-  }
   body {
-    @apply text-black font-body;
+    @apply bg-creme font-body text-encre;
   }
-  p{
-    @apply text-2xl text-justify;
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-title font-semibold tracking-tight text-balance text-encre;
+  }
+
+  h1 {
+    @apply text-3xl sm:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl sm:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl sm:text-2xl;
+  }
+
+  a {
+    @apply underline-offset-4;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-tomate-500;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────
+   Composants. En Tailwind 4, @apply ne peut pas référencer une autre
+   classe custom : on compose donc côté markup (class="btn btn-primary").
+   ─────────────────────────────────────────────────────────────── */
+@layer components {
+  .prose-recette p {
+    @apply text-lg leading-relaxed text-encre-muted;
     white-space: pre-line;
   }
-}
+  .prose-recette p + p {
+    @apply mt-4;
+  }
 
-@layer components {
+  .card {
+    @apply rounded-xl border border-bordure bg-white shadow-card;
+  }
 
-}
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+      font-title text-sm font-semibold tracking-wide uppercase transition
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-tomate-500 text-white hover:bg-tomate-600 active:bg-tomate-700;
+  }
+  .btn-ghost {
+    @apply border border-bordure bg-white text-encre hover:bg-creme-100;
+  }
+  .btn-danger {
+    @apply border border-tomate-200 bg-white text-tomate-700 hover:bg-tomate-50;
+  }
 
-@layer utilities {
+  .field {
+    @apply w-full rounded-lg border border-bordure bg-white px-3 py-2 text-base
+      placeholder:text-encre-faint focus:border-tomate-400 focus:ring-2
+      focus:ring-tomate-200;
+  }
+  .field-error {
+    @apply border-tomate-500 focus:ring-tomate-300;
+  }
 
+  .nav-link {
+    @apply rounded-md px-3 py-2 font-title text-sm font-semibold tracking-wide
+      text-encre-muted uppercase no-underline transition hover:text-tomate-600;
+  }
+  .nav-link-active {
+    @apply bg-tomate-50 text-tomate-600;
+  }
+  .nav-brand {
+    @apply font-title text-xl font-bold tracking-wide text-encre no-underline;
+  }
 }

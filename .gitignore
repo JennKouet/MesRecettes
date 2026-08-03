@@ -4,6 +4,13 @@
 /node_modules
 /.pnp
 .pnp.js
+
+# yarn (berry) — on garde les releases/patches, on ignore le reste
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/versions
 .yarn/install-state.gz
 
 # testing
@@ -26,7 +33,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
+
+# prisma — client généré (recréé par `prisma generate` via postinstall)
+/src/generated
 
 # vercel
 .vercel

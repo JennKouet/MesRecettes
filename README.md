@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Mes Recettes
 
-## Getting Started
+Carnet de recettes et planificateur de menus hebdomadaires.
 
-First, run the development server:
+- **Recettes** : lisibles par tout le monde, y compris sans compte. Seul l'auteur peut modifier ou supprimer les siennes.
+- **Menus** : strictement privés. Chaque utilisateur ne voit et ne modifie que les siens.
+- **Connexion** : email + mot de passe, ou compte Google.
+
+## Stack
+
+| | |
+|---|---|
+| Framework | Next.js 16 (App Router, Turbopack, React 19) |
+| Base de données | PostgreSQL 17 — Docker en local, [Neon](https://neon.tech) en production |
+| ORM | Prisma 7 avec le driver adapter `@prisma/adapter-pg` |
+| Authentification | Auth.js v5 (`next-auth@5` beta) |
+| Styles | Tailwind CSS 4 (configuration en CSS, pas de `tailwind.config.ts`) |
+| Formulaires | react-hook-form + zod |
+| Gestionnaire de paquets | Yarn 4 (Corepack) |
+
+## Démarrer en local
+
+Prérequis : **Node ≥ 20.9**, **Docker**, **Corepack** (fourni avec Node).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+corepack enable
+yarn install
+
+cp .env.example .env
+yarn dlx auth secret          # génère AUTH_SECRET dans .env
+
+yarn db:up                    # Postgres 17 dans Docker (port 5433)
+yarn prisma migrate dev       # applique les migrations
+yarn db:seed                  # 16 catégories + 3 recettes de démonstration
+
+yarn dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Compte de démonstration créé par le seed : `demo@mesrecettes.local` / `demo-motdepasse-2026`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+| Commande | Effet |
+|---|---|
+| `yarn dev` | serveur de développement |
+| `yarn build` / `yarn start` | build et exécution en production |
+| `yarn lint` | ESLint (`next lint` n'existe plus depuis Next 16) |
+| `yarn typecheck` | `tsc --noEmit` |
+| `yarn db:up` / `yarn db:down` | démarre / arrête Postgres |
+| `yarn db:reset` | **supprime le volume** et repart d'une base vide |
+| `yarn db:migrate` | crée et applique une migration |
+| `yarn db:seed` | rejoue le seed (idempotent) |
+| `yarn db:studio` | Prisma Studio |
 
-## Learn More
+Interface web d'inspection de la base, optionnelle :
+`docker compose --profile tools up -d` → <http://localhost:8080>
 
-To learn more about Next.js, take a look at the following resources:
+## Connexion Google
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+À configurer une fois sur [console.cloud.google.com](https://console.cloud.google.com) :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+1. Nouveau projet → **APIs & Services → OAuth consent screen** : type *External*, nom de l'application, email de support, scopes `email` `profile` `openid`.
+   Tant que l'application est en *Testing*, ajoutez votre propre compte Google dans **Test users**, sinon la connexion renvoie `access_denied`.
+2. **Credentials → Create credentials → OAuth client ID → Web application** :
+   - *Authorized JavaScript origins* : `http://localhost:3000`
+   - *Authorized redirect URIs* (exact, sans slash final) : `http://localhost:3000/api/auth/callback/google`
+3. Reportez le client ID et le secret dans `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
 
-## Deploy on Vercel
+En production, ajoutez les mêmes entrées avec l'URL du déploiement.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Déploiement (Vercel + Neon)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+1. Créez une base sur Neon. Deux URLs sont nécessaires :
+   - `DATABASE_URL` → l'hôte **poolé** (`...-pooler...`), utilisé par l'application.
+   - `DIRECT_URL` → l'hôte **direct**, utilisé par le CLI Prisma. Une migration lancée sur l'hôte poolé échoue sur des advisory locks.
+2. Appliquez les migrations depuis un shell local (plutôt que dans la commande de build : une migration qui échoue en plein build laisse l'application à moitié déployée) :
+   ```bash
+   DIRECT_URL="<url-directe-neon>" yarn prisma migrate deploy
+   ```
+3. Variables d'environnement Vercel : `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST=true`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+Le script `postinstall` lance `prisma generate` — il est indispensable : le client est généré dans `src/generated/` qui est gitignoré.
+
+> Le plan gratuit de Neon met la base en veille après ~5 minutes d'inactivité. Le premier appel qui la réveille prend environ une demi-seconde. Ce n'est pas un bug.
+
+## Organisation du code
+
+```
+prisma/            schéma, migrations, seed
+prisma.config.ts   configuration du CLI Prisma (Prisma 7)
+src/
+  proxy.ts         redirections de confort (ex-middleware.ts, renommé en Next 16)
+  auth.ts          configuration complète Auth.js (adapter, Credentials, Google)
+  auth.config.ts   sous-ensemble léger, importé par proxy.ts
+  schemas/         schémas zod PARTAGÉS entre les formulaires et les Server Actions
+  lib/             db, session, erreurs, dates, formatage
+  server/
+    queries/       lectures
+    actions/       mutations (Server Actions)
+  app/             routes et composants
+```
+
+## Notes d'implémentation
+
+**Les Server Actions sont des endpoints publics.** Next.js attribue à chacune un identifiant stable ; n'importe qui peut l'appeler avec un corps forgé, sans ouvrir l'interface. Deux conséquences appliquées partout dans `src/server/actions/` :
+
+- La validation react-hook-form est purement ergonomique — elle tourne dans le navigateur de l'utilisateur. Le serveur revalide systématiquement avec le **même** schéma zod (`src/schemas/`).
+- La propriété d'une donnée s'exprime **dans le `WHERE` SQL** (`updateMany` / `deleteMany` avec `authorId`), jamais dans un `if` préalable. C'est atomique, et on ne peut pas oublier d'exploiter le résultat du contrôle.
+
+**Les menus sont inaccessibles entre utilisateurs par construction.** Le client envoie une coordonnée — semaine, jour, créneau — jamais un `menuId`. Le serveur résout le menu par `(ownerId, weekStart)`, l'`ownerId` venant de la session. Si un `menuId` apparaît un jour dans `src/schemas/menu.ts`, c'est une faille.
+
+**`Menu.weekStart` est un `DATE` Postgres**, toujours normalisé au lundi à minuit UTC (`src/lib/week.ts`). Sans ça, un utilisateur dans un fuseau très à l'est verrait son lundi enregistré comme le dimanche précédent.
+
+**Les sessions sont des JWT, pas des lignes en base.** Auth.js impose cette stratégie dès qu'un provider `Credentials` est présent. Les utilisateurs et les comptes Google restent persistés en Postgres via le `PrismaAdapter` ; la seule contrepartie est qu'une session ne peut pas être révoquée instantanément côté serveur (elle expire au bout de 30 jours).
+
+**`src/proxy.ts` ne fait que des redirections de confort.** Il doit se trouver dans `src/` — Next ne le détecte pas à la racine quand le projet utilise un dossier `src`. Ce n'est pas une barrière de sécurité : chaque Server Action revérifie la session.

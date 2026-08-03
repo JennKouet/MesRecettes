@@ -1,30 +1,88 @@
-'use client'
-import React, {useState, useEffect} from 'react';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { getCurrentUser } from "@/lib/session";
+import { getMenuForWeek } from "@/server/queries/menus";
+import { listRecipeOptions } from "@/server/queries/recipes";
+import { parseWeekParam, weekParam } from "@/lib/week";
+import WeekNav from "./_components/WeekNav";
+import MenuGrid from "./_components/MenuGrid";
+import EmptyState from "../components/ui/EmptyState";
+import { ButtonLink } from "../components/ui/Button";
+import CopyPreviousWeek from "./_components/CopyPreviousWeek";
 
-const Menu = () => {
-    const [firstDay, setFirstDay] = useState<Date>(new Date());
-    const [lastDay, setLastDay] = useState<Date>(new Date());
+export const metadata: Metadata = { title: "Menu de la semaine" };
 
+/**
+ * Server Component. La semaine est calculée au rendu à partir de `?semaine=`.
+ *
+ * L'ancienne version était un composant client qui initialisait son state à
+ * `new Date()` puis recalculait dans un useEffect, ce qui affichait brièvement
+ * la mauvaise date au premier rendu.
+ *
+ * En Next 16, `searchParams` est une Promise.
+ */
+export default async function MenuPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ semaine?: string }>;
+}) {
+  const { semaine: rawWeek } = await searchParams;
 
-    useEffect(() => {
-        const today = new Date();
-        const first = startOfWeek(today, { weekStartsOn: 1 }); // Lundi comme premier jour de la semaine
-        const last = endOfWeek(today, { weekStartsOn: 1 }); // Dimanche comme dernier jour de la semaine
-        setFirstDay(first);
-        setLastDay(last);
+  // Le proxy redirige déjà, mais on revérifie : le proxy est du confort de
+  // navigation, pas une barrière de sécurité.
+  const user = await getCurrentUser();
+  if (!user) redirect("/connexion");
 
-    }, [])
+  const weekStart = parseWeekParam(rawWeek);
+  const semaine = weekParam(weekStart);
 
+  const [menu, recipes] = await Promise.all([
+    getMenuForWeek(weekStart),
+    listRecipeOptions(),
+  ]);
 
+  const entryCount = menu?.entries.length ?? 0;
 
-    return ( 
-        <section>
-            <h1>Menu de la semaine du {format(firstDay, 'dd/MM/yyyy', { locale: fr })} au {format(lastDay, 'dd/MM/yyyy', { locale: fr })} </h1>
-        </section>
-    );
+  return (
+    <section className="flex flex-col gap-6">
+      <header className="flex flex-col gap-4">
+        <div>
+          <p className="font-title text-sm font-semibold tracking-widest text-tomate-600 uppercase">
+            Mon menu
+          </p>
+          <h1 className="mt-1">Menu de la semaine</h1>
+        </div>
+
+        <WeekNav weekStart={weekStart} />
+      </header>
+
+      {recipes.length === 0 ? (
+        <EmptyState
+          icon="📖"
+          title="Aucune recette à planifier"
+          description="Ajoutez d'abord une recette au carnet, vous pourrez ensuite la placer dans votre semaine."
+          action={<ButtonLink href="/recettes/nouvelle">Créer une recette</ButtonLink>}
+        />
+      ) : (
+        <>
+          <MenuGrid
+            semaine={semaine}
+            weekStart={weekStart}
+            menu={menu}
+            recipes={recipes}
+          />
+
+          <footer className="flex flex-wrap items-center gap-3 border-t border-bordure pt-4">
+            <p className="text-sm text-encre-muted">
+              {entryCount === 0
+                ? "Semaine vide."
+                : `${entryCount} repas planifié${entryCount > 1 ? "s" : ""}.`}
+            </p>
+            <CopyPreviousWeek semaine={semaine} />
+          </footer>
+        </>
+      )}
+    </section>
+  );
 }
-
-export default Menu;
