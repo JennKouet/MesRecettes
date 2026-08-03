@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import RegisterForm from "../_components/RegisterForm";
 import GoogleButton from "../_components/GoogleButton";
+import { isGoogleConfigured } from "@/auth.config";
 
 export const metadata: Metadata = { title: "Inscription" };
 
@@ -22,15 +23,21 @@ export default async function InscriptionPage() {
 
       <RegisterForm />
 
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-bordure" />
-        <span className="text-xs tracking-widest text-encre-faint uppercase">
-          ou
-        </span>
-        <span className="h-px flex-1 bg-bordure" />
-      </div>
+      {/* Séparateur et bouton disparaissent ensemble si Google n'est pas
+          configuré : un « ou » suivi de rien n'aurait aucun sens. */}
+      {isGoogleConfigured && (
+        <>
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-bordure" />
+            <span className="text-xs tracking-widest text-encre-faint uppercase">
+              ou
+            </span>
+            <span className="h-px flex-1 bg-bordure" />
+          </div>
 
-      <GoogleButton />
+          <GoogleButton />
+        </>
+      )}
 
       <p className="text-center text-sm text-encre-muted">
         Déjà inscrit ?{" "}
