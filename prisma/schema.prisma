@@ -1,0 +1,229 @@
+// Schéma Prisma 7.
+// Le générateur `prisma-client` remplace `prisma-client-js` et exige un `output`.
+// Le client s'importe donc depuis `@/generated/prisma/client`, pas depuis `@prisma/client`.
+// La configuration du CLI (chemin des migrations, datasource, seed) vit dans /prisma.config.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────── Auth.js ───────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  // null pour les comptes créés via Google uniquement.
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  recipes  Recipe[]
+  menus    Menu[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Conservé bien qu'inutilisé : la stratégie de session est `jwt` (imposée par le
+// provider Credentials). Garder le modèle permet de basculer sur des sessions en
+// base plus tard sans migration.
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ─────────────────────────── Recettes ───────────────────────────
+
+enum Difficulty {
+  FACILE
+  MOYEN
+  DIFFICILE
+}
+
+enum Unit {
+  G
+  KG
+  ML
+  CL
+  L
+  CUILLERE_A_CAFE
+  CUILLERE_A_SOUPE
+  PINCEE
+  GOUSSE
+  TRANCHE
+  SACHET
+  BOTTE
+  PIECE
+}
+
+model Recipe {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  description String?    @db.Text
+  servings    Int        @default(4)
+  prepMinutes Int?
+  cookMinutes Int?
+  difficulty  Difficulty @default(FACILE)
+  sourceUrl   String?
+  authorId    String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  ingredients Ingredient[]
+  steps       Step[]
+  tags        RecipeTag[]
+  menuEntries MenuEntry[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([title])
+}
+
+// `position` est indexé mais volontairement PAS unique : une contrainte
+// @@unique([recipeId, position]) rendrait le réordonnancement pénible.
+// Les collections sont remplacées en bloc dans une transaction (cf. recipe-actions).
+model Ingredient {
+  id       String   @id @default(cuid())
+  recipeId String
+  position Int
+  quantity Decimal? @db.Decimal(8, 2)
+  unit     Unit?
+  name     String
+  note     String?
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId, position])
+}
+
+model Step {
+  id       String @id @default(cuid())
+  recipeId String
+  position Int
+  content  String @db.Text
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId, position])
+}
+
+enum TagKind {
+  COURSE
+  DIET
+  CUISINE
+  OTHER
+}
+
+model Tag {
+  id   String  @id @default(cuid())
+  slug String  @unique
+  name String  @unique
+  kind TagKind @default(OTHER)
+
+  recipes RecipeTag[]
+
+  @@index([kind])
+}
+
+// Table de jointure explicite plutôt que le m-n implicite de Prisma :
+// on obtient un vrai index sur tagId pour « toutes les recettes taguées dessert ».
+model RecipeTag {
+  recipeId String
+  tagId    String
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, tagId])
+  @@index([tagId])
+}
+
+// ─────────────────────────── Menus ───────────────────────────
+
+enum MealSlot {
+  DEJEUNER
+  DINER
+}
+
+model Menu {
+  id String @id @default(cuid())
+
+  ownerId String
+
+  // Toujours un lundi. Le type DATE de Postgres n'a ni heure ni fuseau,
+  // ce qui élimine les décalages d'un jour selon le fuseau du client.
+  weekStart DateTime @db.Date
+
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  entries MenuEntry[]
+
+  // Rend l'accès inter-utilisateurs non représentable : le serveur résout
+  // toujours un menu par (ownerId, weekStart), jamais par un id fourni par le client.
+  @@unique([ownerId, weekStart])
+  @@index([ownerId, weekStart(sort: Desc)])
+}
+
+model MenuEntry {
+  id     String @id @default(cuid())
+  menuId String
+
+  // ISO : 1 = lundi … 7 = dimanche.
+  dayOfWeek Int
+  slot      MealSlot
+
+  // Nullable + SetNull : supprimer une recette ne troue pas les menus passés.
+  recipeId    String?
+  customLabel String?
+  servings    Int?
+
+  menu   Menu    @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  recipe Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@unique([menuId, dayOfWeek, slot])
+  @@index([recipeId])
+}
