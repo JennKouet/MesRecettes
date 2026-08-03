@@ -71,6 +71,24 @@ Interface web d'inspection de la base, optionnelle :
 
 En production, ajoutez les mêmes entrées avec l'URL du déploiement.
 
+### Connexion Google sur les preview deployments
+
+Chaque preview a un hostname unique, et Google exige une URI de redirection déclarée à l'identique : il faudrait en ajouter une par PR. La connexion échoue sinon avec `Erreur 400 : redirect_uri_mismatch`.
+
+Auth.js prévoit un relais pour ce cas. Définissez sur Vercel :
+
+```
+AUTH_REDIRECT_PROXY_URL = https://<domaine-stable>/api/auth
+```
+
+Trois points à ne pas rater :
+
+- Le chemin `/api/auth` fait partie de la valeur, ce n'est pas seulement le domaine.
+- La variable doit être définie sur **Production *et* Preview**. C'est contre-intuitif, mais si elle manque côté stable le relais ne s'active pas : c'est la production qui sert de relais.
+- `AUTH_SECRET` doit être **identique** entre les deux environnements — c'est lui qui signe le paramètre `state` que les deux doivent pouvoir valider.
+
+La preview conserve alors son URL dans le `state` et envoie Google vers l'URL stable, qui valide puis renvoie l'utilisateur sur la preview. Une seule URI à déclarer chez Google, quel que soit le nombre de previews.
+
 ## Déploiement (Vercel + Neon)
 
 1. **Créez la base.** Le plus simple est de passer par Vercel : projet → onglet **Storage** → *Create Database* → **Neon**.
