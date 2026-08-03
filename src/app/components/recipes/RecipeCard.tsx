@@ -16,7 +16,7 @@ export default function RecipeCard({ recipe }: { recipe: RecipeListItem }) {
       <Link href={`/recettes/${recipe.slug}`} className="flex flex-1 flex-col no-underline">
         <div
           aria-hidden
-          className="flex h-24 items-center justify-center bg-gradient-to-br from-safran-100 to-tomate-100"
+          className="flex h-24 items-center justify-center bg-linear-to-br from-safran-100 to-tomate-100"
         >
           <span className="font-title text-4xl font-bold text-tomate-300">
             {recipe.title.charAt(0).toUpperCase()}
@@ -24,6 +24,14 @@ export default function RecipeCard({ recipe }: { recipe: RecipeListItem }) {
         </div>
 
         <div className="flex flex-1 flex-col gap-3 p-4">
+          {/* Une recette incomplète n'est renvoyée par listRecipes qu'à son
+              auteur : ce badge n'est donc jamais vu par quelqu'un d'autre. */}
+          {!recipe.isComplete && (
+            <span className="self-start rounded-full bg-safran-100 px-2 py-0.5 font-title text-[0.65rem] font-semibold tracking-wide text-safran-700 uppercase">
+              À compléter · visible de vous seul
+            </span>
+          )}
+
           <h2 className="text-lg leading-snug sm:text-xl group-hover:text-tomate-600">
             {recipe.title}
           </h2>

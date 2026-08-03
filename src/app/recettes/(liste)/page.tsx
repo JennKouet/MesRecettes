@@ -4,11 +4,11 @@ import { Suspense } from "react";
 import { listRecipes } from "@/server/queries/recipes";
 import { listTags } from "@/server/queries/tags";
 import { getCurrentUser } from "@/lib/session";
-import RecipeCard from "../components/recipes/RecipeCard";
-import SearchBar from "../components/recipes/SearchBar";
-import TagFilter from "../components/recipes/TagFilter";
-import EmptyState from "../components/ui/EmptyState";
-import { ButtonLink } from "../components/ui/Button";
+import RecipeCard from "../../components/recipes/RecipeCard";
+import SearchBar from "../../components/recipes/SearchBar";
+import TagFilter from "../../components/recipes/TagFilter";
+import EmptyState from "../../components/ui/EmptyState";
+import { ButtonLink } from "../../components/ui/Button";
 
 export const metadata: Metadata = { title: "Recettes" };
 
@@ -25,10 +25,13 @@ export default async function RecettesPage({
       : [params.tag]
     : [];
 
-  const [recipes, tags, user] = await Promise.all([
-    listRecipes({ query: params.q, tags: selectedTags }),
+  // La session est lue AVANT la liste : listRecipes en a besoin pour inclure
+  // les brouillons de l'utilisateur, invisibles de tous les autres.
+  const user = await getCurrentUser();
+
+  const [recipes, tags] = await Promise.all([
+    listRecipes({ query: params.q, tags: selectedTags, viewerId: user?.id }),
     listTags(),
-    getCurrentUser(),
   ]);
 
   const isFiltered = Boolean(params.q?.trim()) || selectedTags.length > 0;

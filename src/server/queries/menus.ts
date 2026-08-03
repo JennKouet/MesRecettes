@@ -29,6 +29,7 @@ export async function getMenuForWeek(weekStart: Date) {
               id: true,
               slug: true,
               title: true,
+              isComplete: true,
               prepMinutes: true,
               cookMinutes: true,
             },

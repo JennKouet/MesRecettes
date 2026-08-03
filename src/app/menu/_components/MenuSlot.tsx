@@ -6,11 +6,16 @@ import { useRouter } from "next/navigation";
 
 import type { MealSlot } from "@/generated/prisma/enums";
 import { SLOT_LABELS } from "@/lib/format";
-import { clearMenuEntry, setMenuEntry } from "@/server/actions/menu-actions";
+import {
+  clearMenuEntry,
+  setCustomEntry,
+  setMenuEntry,
+} from "@/server/actions/menu-actions";
+import { quickCreateRecipe } from "@/server/actions/recipe-actions";
 import RecipePicker, { type RecipeOption } from "./RecipePicker";
 
 export type SlotEntry = {
-  recipe: { id: string; slug: string; title: string } | null;
+  recipe: { id: string; slug: string; title: string; isComplete: boolean } | null;
   customLabel: string | null;
 } | null;
 
@@ -41,10 +46,54 @@ export default function MenuSlot({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const coordinate = { semaine, dayOfWeek, slot };
+
   function assign(recipeId: string) {
     setError(null);
     startTransition(async () => {
-      const result = await setMenuEntry({ semaine, dayOfWeek, slot, recipeId });
+      const result = await setMenuEntry({ ...coordinate, recipeId });
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setPickerOpen(false);
+      router.refresh();
+    });
+  }
+
+  /** Crée la recette manquante puis l'assigne dans la foulée. */
+  function createAndAssign(title: string) {
+    setError(null);
+    startTransition(async () => {
+      const created = await quickCreateRecipe({ title });
+      if (!created.ok) {
+        setError(created.message);
+        return;
+      }
+
+      const assigned = await setMenuEntry({
+        ...coordinate,
+        recipeId: created.data.id,
+      });
+      if (!assigned.ok) {
+        // La recette existe bien, seule l'assignation a échoué : le dire
+        // explicitement évite que l'utilisateur la recrée en double.
+        setError(
+          `« ${created.data.title} » a été créée, mais n'a pas pu être planifiée. Réessayez.`,
+        );
+        router.refresh();
+        return;
+      }
+
+      setPickerOpen(false);
+      router.refresh();
+    });
+  }
+
+  function noteCustom(customLabel: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await setCustomEntry({ ...coordinate, customLabel });
       if (!result.ok) {
         setError(result.message);
         return;
@@ -57,7 +106,7 @@ export default function MenuSlot({
   function clear() {
     setError(null);
     startTransition(async () => {
-      const result = await clearMenuEntry({ semaine, dayOfWeek, slot });
+      const result = await clearMenuEntry(coordinate);
       if (!result.ok) {
         setError(result.message);
         return;
@@ -67,23 +116,36 @@ export default function MenuSlot({
   }
 
   const label = `${SLOT_LABELS[slot]} — ${dayLabel}`;
+  const isFilled = Boolean(entry?.recipe || entry?.customLabel);
 
   return (
-    // flex-1 : les deux créneaux d'un jour se partagent la hauteur, donc les
-    // sept colonnes restent alignées quelle que soit la longueur des titres.
     <div className="flex min-h-24 flex-1 flex-col gap-1 rounded-lg border border-bordure bg-white p-2">
       <p className="font-title text-[0.65rem] font-semibold tracking-widest text-encre-faint uppercase">
         {SLOT_LABELS[slot]}
       </p>
 
-      {entry?.recipe ? (
+      {isFilled ? (
         <div className="flex flex-1 flex-col gap-1">
-          <Link
-            href={`/recettes/${entry.recipe.slug}`}
-            className="text-sm leading-snug font-medium text-encre no-underline hover:text-tomate-600"
-          >
-            {entry.recipe.title}
-          </Link>
+          {entry?.recipe ? (
+            <>
+              <Link
+                href={`/recettes/${entry.recipe.slug}`}
+                className="text-sm leading-snug font-medium text-encre no-underline hover:text-tomate-600"
+              >
+                {entry.recipe.title}
+              </Link>
+              {!entry.recipe.isComplete && (
+                <span className="self-start rounded-full bg-safran-100 px-1.5 py-0.5 font-title text-[0.6rem] font-semibold tracking-wide text-safran-700 uppercase">
+                  À compléter
+                </span>
+              )}
+            </>
+          ) : (
+            <p className="text-sm leading-snug font-medium text-encre-muted italic">
+              {entry?.customLabel}
+            </p>
+          )}
+
           <button
             type="button"
             onClick={clear}
@@ -98,26 +160,30 @@ export default function MenuSlot({
           type="button"
           onClick={() => setPickerOpen(true)}
           disabled={isPending}
-          aria-label={`Ajouter une recette — ${label}`}
+          aria-label={`Remplir le créneau — ${label}`}
           className="flex flex-1 items-center justify-center rounded-md border border-dashed border-bordure text-sm text-encre-faint transition hover:border-tomate-300 hover:text-tomate-600 disabled:opacity-50"
         >
           + Ajouter
         </button>
       )}
 
-      {error && (
+      {error && !isPickerOpen && (
         <p role="alert" className="text-xs text-tomate-700">
           {error}
         </p>
       )}
 
       <RecipePicker
+        domId={`picker-${dayOfWeek}-${slot}`}
         open={isPickerOpen}
         title={label}
         recipes={recipes}
         onSelect={assign}
+        onQuickCreate={createAndAssign}
+        onCustom={noteCustom}
         onClose={() => setPickerOpen(false)}
         pending={isPending}
+        error={isPickerOpen ? error : null}
       />
     </div>
   );

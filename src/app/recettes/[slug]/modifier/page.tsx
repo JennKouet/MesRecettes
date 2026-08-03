@@ -19,7 +19,10 @@ export default async function ModifierRecettePage({
   const user = await getCurrentUser();
   if (!user) redirect("/connexion");
 
-  const [recipe, tags] = await Promise.all([getRecipeBySlug(slug), listTags()]);
+  const [recipe, tags] = await Promise.all([
+    getRecipeBySlug(slug, user.id),
+    listTags(),
+  ]);
   if (!recipe) notFound();
 
   // Un non-auteur ne doit pas voir le formulaire pré-rempli d'autrui. On renvoie
@@ -34,14 +37,22 @@ export default async function ModifierRecettePage({
     prepMinutes: recipe.prepMinutes ?? "",
     cookMinutes: recipe.cookMinutes ?? "",
     difficulty: recipe.difficulty,
-    ingredients: recipe.ingredients.map((ingredient) => ({
-      // quantity est un Decimal Prisma : on le ramène en nombre pour l'input.
-      quantity: ingredient.quantity === null ? "" : Number(ingredient.quantity),
-      unit: ingredient.unit ?? "",
-      name: ingredient.name,
-      note: ingredient.note ?? "",
-    })),
-    steps: recipe.steps.map((step) => ({ content: step.content })),
+    // Un brouillon créé depuis le menu n'a ni ingrédient ni étape : on amorce
+    // une ligne vide de chaque, sinon useFieldArray n'affiche aucun champ et il
+    // n'y a plus rien à remplir.
+    ingredients: recipe.ingredients.length
+      ? recipe.ingredients.map((ingredient) => ({
+          // quantity est un Decimal Prisma : on le ramène en nombre pour l'input.
+          quantity:
+            ingredient.quantity === null ? "" : Number(ingredient.quantity),
+          unit: ingredient.unit ?? "",
+          name: ingredient.name,
+          note: ingredient.note ?? "",
+        }))
+      : [{ quantity: "", unit: "", name: "", note: "" }],
+    steps: recipe.steps.length
+      ? recipe.steps.map((step) => ({ content: step.content }))
+      : [{ content: "" }],
     tagIds: [],
   };
 

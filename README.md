@@ -6,6 +6,8 @@ Carnet de recettes et planificateur de menus hebdomadaires.
 - **Menus** : strictement privés. Chaque utilisateur ne voit et ne modifie que les siens.
 - **Connexion** : email + mot de passe, ou compte Google.
 
+Depuis la page menu, un créneau se remplit de trois façons sans quitter la page : choisir une recette existante, **créer à la volée** une recette qui n'existe pas encore (le titre suffit), ou noter un **repas libre** (« restes », « restaurant ») qui ne crée aucune fiche.
+
 ## Stack
 
 | | |
@@ -110,6 +112,10 @@ src/
 **Les menus sont inaccessibles entre utilisateurs par construction.** Le client envoie une coordonnée — semaine, jour, créneau — jamais un `menuId`. Le serveur résout le menu par `(ownerId, weekStart)`, l'`ownerId` venant de la session. Si un `menuId` apparaît un jour dans `src/schemas/menu.ts`, c'est une faille.
 
 **`Menu.weekStart` est un `DATE` Postgres**, toujours normalisé au lundi à minuit UTC (`src/lib/week.ts`). Sans ça, un utilisateur dans un fuseau très à l'est verrait son lundi enregistré comme le dimanche précédent.
+
+**`Recipe.isComplete` pilote la visibilité publique.** Une recette créée à la volée depuis le menu n'a ni ingrédient ni étape : elle reste visible de son seul auteur jusqu'à ce qu'il la complète. Le drapeau est *dérivé* (au moins un ingrédient ET une étape) mais *stocké*, pour rester filtrable et indexable sans jointure ; il ne peut pas dériver puisque toutes les écritures passent par `createRecipe` / `updateRecipe` / `quickCreateRecipe`, qui le recalculent. Le formulaire complet exigeant les deux, **enregistrer via le formulaire revient à publier**. Le filtrage est concentré dans `src/server/queries/recipes.ts` : le paramètre `viewerId` vient toujours de la session, jamais de la requête HTTP, et l'omettre donne la vue strictement publique — le défaut sûr.
+
+**Attention aux `loading.tsx` au-dessus d'une route dynamique.** Un `loading.tsx` crée une frontière Suspense : la réponse part en streaming avec un statut 200, et `notFound()` ne peut plus le corriger en 404. C'est pourquoi le squelette de la liste vit dans le groupe `src/app/recettes/(liste)/` — qui n'apparaît pas dans l'URL — plutôt que directement sous `recettes/`, où il couvrirait aussi `[slug]`.
 
 **Les sessions sont des JWT, pas des lignes en base.** Auth.js impose cette stratégie dès qu'un provider `Credentials` est présent. Les utilisateurs et les comptes Google restent persistés en Postgres via le `PrismaAdapter` ; la seule contrepartie est qu'une session ne peut pas être révoquée instantanément côté serveur (elle expire au bout de 30 jours).
 

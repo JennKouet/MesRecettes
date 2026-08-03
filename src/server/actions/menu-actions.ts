@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/session";
 import { parseWeekParam, weekParam } from "@/lib/week";
 import {
   clearMenuEntrySchema,
+  setCustomEntrySchema,
   setMenuEntrySchema,
   weekSchema,
 } from "@/schemas/menu";
@@ -56,11 +57,15 @@ export async function setMenuEntry(
     const { semaine, dayOfWeek, slot, recipeId } = parsed.data;
     const weekStart = parseWeekParam(semaine);
 
-    // La recette, elle, est publique : n'importe quelle recette existante peut
-    // être planifiée, y compris celle d'un autre utilisateur. On vérifie juste
-    // qu'elle existe.
-    const recipe = await db.recipe.findUnique({
-      where: { id: recipeId },
+    // On peut planifier n'importe quelle recette PUBLIQUE, y compris celle d'un
+    // autre utilisateur — c'est un carnet partagé. En revanche un brouillon
+    // n'est planifiable que par son auteur, sinon planifier deviendrait un
+    // moyen d'apprendre le titre du brouillon de quelqu'un d'autre.
+    const recipe = await db.recipe.findFirst({
+      where: {
+        id: recipeId,
+        OR: [{ isComplete: true }, { authorId: user.id }],
+      },
       select: { id: true },
     });
     if (!recipe) {
@@ -77,6 +82,44 @@ export async function setMenuEntry(
       },
       update: { recipeId, customLabel: null },
       create: { menuId: menu.id, dayOfWeek, slot, recipeId },
+    });
+
+    revalidatePath("/menu");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Repas libre : du texte dans le créneau, sans recette associée.
+ * Pour « restes », « restaurant », « chez mamie » — des repas qui n'ont pas
+ * vocation à devenir des fiches du carnet.
+ */
+export async function setCustomEntry(
+  input: unknown,
+): Promise<ActionResult<undefined>> {
+  try {
+    const user = await requireUser();
+
+    const parsed = setCustomEntrySchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        message: "Données invalides.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+    const { semaine, dayOfWeek, slot, customLabel } = parsed.data;
+    const weekStart = parseWeekParam(semaine);
+
+    const menu = await resolveOwnMenu(db, user.id, weekStart);
+
+    await db.menuEntry.upsert({
+      where: { menuId_dayOfWeek_slot: { menuId: menu.id, dayOfWeek, slot } },
+      // recipeId remis à null : un repas libre remplace une recette planifiée.
+      update: { customLabel, recipeId: null },
+      create: { menuId: menu.id, dayOfWeek, slot, customLabel },
     });
 
     revalidatePath("/menu");
