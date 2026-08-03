@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { ensureUniqueSlug } from "@/lib/slug";
+import { deleteBlobQuietly } from "@/lib/blob";
 import {
   quickRecipeSchema,
   recipeInputSchema,
@@ -119,6 +120,7 @@ export async function createRecipe(
           prepMinutes: data.prepMinutes,
           cookMinutes: data.cookMinutes,
           difficulty: data.difficulty,
+          imageUrl: data.imageUrl,
           isComplete: computeIsComplete(data),
           // Jamais lu depuis l'entrée client : c'est la session qui fait foi.
           authorId: user.id,
@@ -202,6 +204,14 @@ export async function updateRecipe(
     }
     const data = parsed.data;
 
+    // Photo actuelle, relevée avant l'écriture : si elle change, l'ancienne
+    // devra être supprimée du stockage. Filtrée par authorId pour ne rien
+    // apprendre sur la recette d'un autre.
+    const previous = await db.recipe.findFirst({
+      where: { id: recipeId, authorId: user.id },
+      select: { imageUrl: true },
+    });
+
     const slug = await db.$transaction(async (tx) => {
       // La propriété est DANS le WHERE. Si la recette n'existe pas ou n'est pas
       // à cet utilisateur, count vaut 0 et rien n'a été écrit.
@@ -214,6 +224,7 @@ export async function updateRecipe(
           prepMinutes: data.prepMinutes,
           cookMinutes: data.cookMinutes,
           difficulty: data.difficulty,
+          imageUrl: data.imageUrl,
           // Compléter un brouillon le rend public ; c'est le seul moyen de publier.
           isComplete: computeIsComplete(data),
         },
@@ -230,6 +241,12 @@ export async function updateRecipe(
       return recipe.slug;
     });
 
+    // Après le commit seulement : si la transaction avait échoué, on aurait
+    // supprimé la photo d'une recette restée inchangée.
+    if (previous?.imageUrl && previous.imageUrl !== data.imageUrl) {
+      await deleteBlobQuietly(previous.imageUrl);
+    }
+
     revalidatePath("/recettes");
     revalidatePath(`/recettes/${slug}`);
     return { ok: true, data: { slug } };
@@ -244,12 +261,20 @@ export async function deleteRecipe(
   try {
     const user = await requireUser();
 
+    // Relevée avant la suppression : après, la ligne n'existe plus.
+    const doomed = await db.recipe.findFirst({
+      where: { id: recipeId, authorId: user.id },
+      select: { imageUrl: true },
+    });
+
     // Même motif : la propriété est le prédicat de suppression.
     const { count } = await db.recipe.deleteMany({
       where: { id: recipeId, authorId: user.id },
     });
 
     if (count !== 1) throw new ForbiddenError();
+
+    await deleteBlobQuietly(doomed?.imageUrl);
 
     revalidatePath("/recettes");
     return { ok: true, data: undefined };

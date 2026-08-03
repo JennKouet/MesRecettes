@@ -1,12 +1,13 @@
+import Image from "next/image";
 import Link from "next/link";
 import { TagPill } from "../ui/TagPill";
 import { DIFFICULTY_LABELS, formatTotalTime } from "@/lib/format";
 import type { RecipeListItem } from "@/server/queries/recipes";
 
 /**
- * Pas d'image en V1. Le bandeau dégradé avec l'initiale donne à la carte la
- * bonne silhouette dès maintenant : quand les photos arriveront, il suffira de
- * remplacer ce bloc, sans retoucher la mise en page de la grille.
+ * La photo est facultative. Sans elle, un bandeau dégradé de même hauteur
+ * affiche l'initiale du titre : la grille garde ainsi la même mise en page,
+ * que les recettes soient illustrées ou non.
  */
 export default function RecipeCard({ recipe }: { recipe: RecipeListItem }) {
   const totalTime = formatTotalTime(recipe.prepMinutes, recipe.cookMinutes);
@@ -14,14 +15,30 @@ export default function RecipeCard({ recipe }: { recipe: RecipeListItem }) {
   return (
     <article className="card group flex flex-col overflow-hidden transition hover:border-tomate-300">
       <Link href={`/recettes/${recipe.slug}`} className="flex flex-1 flex-col no-underline">
-        <div
-          aria-hidden
-          className="flex h-24 items-center justify-center bg-linear-to-br from-safran-100 to-tomate-100"
-        >
-          <span className="font-title text-4xl font-bold text-tomate-300">
-            {recipe.title.charAt(0).toUpperCase()}
-          </span>
-        </div>
+        {recipe.imageUrl ? (
+          <div className="relative h-40 w-full overflow-hidden">
+            <Image
+              src={recipe.imageUrl}
+              alt=""
+              fill
+              // Trois colonnes en large, deux en tablette, une en mobile :
+              // évite de télécharger une image pleine largeur pour une vignette.
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition group-hover:scale-105"
+            />
+          </div>
+        ) : (
+          // Repli sans photo : le bandeau donne à la carte la même silhouette,
+          // donc la grille ne bouge pas selon que la recette est illustrée ou non.
+          <div
+            aria-hidden
+            className="flex h-40 items-center justify-center bg-linear-to-br from-safran-100 to-tomate-100"
+          >
+            <span className="font-title text-5xl font-bold text-tomate-300">
+              {recipe.title.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-1 flex-col gap-3 p-4">
           {/* Une recette incomplète n'est renvoyée par listRecipes qu'à son

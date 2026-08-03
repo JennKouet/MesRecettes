@@ -81,6 +81,12 @@ export const recipeInputSchema = z.object({
     { message: "Entre 0 et 1440 minutes" },
   ),
   difficulty: z.enum(Difficulty),
+  // URL renvoyée par uploadRecipeImage. Le fichier lui-même ne transite jamais
+  // par ce schéma : il est envoyé séparément, avant l'enregistrement.
+  imageUrl: z
+    .union([z.url(), z.literal("")])
+    .transform((value) => (value === "" ? null : value))
+    .nullable(),
   ingredients: z.array(ingredientSchema).min(1, "Au moins un ingrédient"),
   steps: z.array(stepSchema).min(1, "Au moins une étape"),
   tagIds: z.array(z.string()).max(12, "12 catégories maximum"),

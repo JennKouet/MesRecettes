@@ -14,6 +14,7 @@ import { FormRow, Input, Textarea, Select } from "@/app/components/ui/Field";
 import { Button } from "@/app/components/ui/Button";
 import { TagPillButton } from "@/app/components/ui/TagPill";
 import { applyServerErrors } from "@/app/(auth)/_components/applyServerErrors";
+import ImageField from "./ImageField";
 import IngredientRows from "./IngredientRows";
 import StepRows from "./StepRows";
 
@@ -24,6 +25,7 @@ export const EMPTY_RECIPE: RecipeFormValues = {
   prepMinutes: "",
   cookMinutes: "",
   difficulty: "FACILE",
+  imageUrl: "",
   ingredients: [{ quantity: "", unit: "", name: "", note: "" }],
   steps: [{ content: "" }],
   tagIds: [],
@@ -169,6 +171,17 @@ export default function RecipeForm({
             </Select>
           </FormRow>
         </div>
+
+        <Controller
+          control={form.control}
+          name="imageUrl"
+          render={({ field }) => (
+            <ImageField
+              value={field.value || null}
+              onChange={(url) => field.onChange(url ?? "")}
+            />
+          )}
+        />
       </section>
 
       <section className="card p-5">

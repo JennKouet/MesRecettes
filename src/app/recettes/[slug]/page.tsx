@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import { getRecipeBySlug } from "@/server/queries/recipes";
@@ -41,6 +42,21 @@ export default async function RecipeDetailPage({ params }: Props) {
 
   return (
     <article className="flex flex-col gap-8">
+      {recipe.imageUrl && (
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-bordure">
+          <Image
+            src={recipe.imageUrl}
+            alt=""
+            fill
+            sizes="(max-width: 1024px) 100vw, 64rem"
+            className="object-cover"
+            // Image principale de la page : la charger en priorité améliore
+            // le Largest Contentful Paint.
+            priority
+          />
+        </div>
+      )}
+
       <header className="flex flex-col gap-4">
         {/* getRecipeBySlug ne renvoie un brouillon qu'à son auteur : ce bandeau
             ne s'affiche donc jamais pour un autre visiteur. */}
