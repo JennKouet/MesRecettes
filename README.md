@@ -120,6 +120,16 @@ La preview conserve alors son URL dans le `state` et envoie Google vers l'URL st
 
    > **Ne définissez pas `AUTH_URL` sur Vercel.** Auth.js v5 déduit l'hôte des en-têtes de la requête, et active `AUTH_TRUST_HOST` tout seul dès qu'il détecte Vercel. En définir une casse les preview deployments, dont le hostname change à chaque déploiement — et si la valeur n'est pas une URL valide, `new URL()` lève `ERR_INVALID_URL` **dans le proxy**, ce qui fait tomber *toutes* les routes en 500.
 
+### Migrations et bases de preview
+
+L'intégration Neon crée une **branche de base dédiée à chaque preview**. Ces branches ne reçoivent aucune migration automatiquement : une preview construite après un changement de schéma échouerait en lisant une colonne absente chez elle.
+
+`scripts/migrate-preview.mjs`, branché sur la commande de build, applique donc `prisma migrate deploy` **quand `VERCEL_ENV` vaut `preview`, et uniquement là**.
+
+La production en est délibérément exclue. Migrer pendant un build est risqué — une migration qui échoue laisse l'application à moitié déployée. Sur une branche de preview jetable le risque est nul ; en production il toucherait de vrais utilisateurs, d'où l'application manuelle décrite plus haut.
+
+Le script ne bloque jamais le build : sans connexion directe disponible, il avertit et laisse passer, l'erreur applicative étant plus parlante qu'un échec de build.
+
 Le script `postinstall` lance `prisma generate` — il est indispensable : le client est généré dans `src/generated/` qui est gitignoré.
 
 > Le plan gratuit de Neon met la base en veille après ~5 minutes d'inactivité. Le premier appel qui la réveille prend environ une demi-seconde. Ce n'est pas un bug.
