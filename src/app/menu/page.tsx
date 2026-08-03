@@ -39,7 +39,8 @@ export default async function MenuPage({
 
   const [menu, recipes] = await Promise.all([
     getMenuForWeek(weekStart),
-    listRecipeOptions(),
+    // viewerId : l'utilisateur peut planifier ses propres brouillons.
+    listRecipeOptions(user.id),
   ]);
 
   const entryCount = menu?.entries.length ?? 0;

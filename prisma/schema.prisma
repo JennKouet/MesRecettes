@@ -109,6 +109,15 @@ model Recipe {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+  // Une recette est « complète » quand elle a au moins un ingrédient ET une
+  // étape. Tant qu'elle ne l'est pas, elle reste privée : seul son auteur la
+  // voit (cf. src/server/queries/recipes.ts).
+  //
+  // Cette valeur est DÉRIVÉE mais stockée, pour être filtrable et indexable
+  // sans jointure. Elle ne peut pas dériver : toutes les écritures passent par
+  // createRecipe / updateRecipe / quickCreateRecipe, qui la recalculent.
+  isComplete Boolean @default(true)
+
   author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
   ingredients Ingredient[]
   steps       Step[]
@@ -118,6 +127,8 @@ model Recipe {
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
   @@index([title])
+  // La liste publique filtre systématiquement sur isComplete.
+  @@index([isComplete, createdAt(sort: Desc)])
 }
 
 // `position` est indexé mais volontairement PAS unique : une contrainte

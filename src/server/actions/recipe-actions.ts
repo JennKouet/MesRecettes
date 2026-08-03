@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { ensureUniqueSlug } from "@/lib/slug";
-import { recipeInputSchema, type RecipeInput } from "@/schemas/recipe";
+import {
+  quickRecipeSchema,
+  recipeInputSchema,
+  type RecipeInput,
+} from "@/schemas/recipe";
 import {
   ForbiddenError,
   toActionResult,
@@ -28,6 +32,18 @@ import {
  *      d'exploiter le résultat du contrôle.
  * ─────────────────────────────────────────────────────────────────────────
  */
+
+/**
+ * Une recette n'est publique que lorsqu'elle a au moins un ingrédient ET une
+ * étape. Le schéma zod du formulaire complet exige déjà les deux, donc tout
+ * passage par ce formulaire publie la recette ; seule la création rapide
+ * produit un brouillon.
+ *
+ * Ce calcul est centralisé ici pour que la colonne ne puisse pas dériver.
+ */
+function computeIsComplete(data: RecipeInput): boolean {
+  return data.ingredients.length > 0 && data.steps.length > 0;
+}
 
 /** Remplace en bloc ingrédients, étapes et tags. Doit tourner dans une transaction. */
 async function replaceCollections(
@@ -103,6 +119,7 @@ export async function createRecipe(
           prepMinutes: data.prepMinutes,
           cookMinutes: data.cookMinutes,
           difficulty: data.difficulty,
+          isComplete: computeIsComplete(data),
           // Jamais lu depuis l'entrée client : c'est la session qui fait foi.
           authorId: user.id,
         },
@@ -114,6 +131,55 @@ export async function createRecipe(
 
     revalidatePath("/recettes");
     return { ok: true, data: { slug } };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Création rapide depuis la page menu : un titre suffit.
+ *
+ * La recette est créée INCOMPLÈTE, donc invisible de tous sauf de son auteur,
+ * jusqu'à ce qu'il y ajoute ingrédients et étapes. C'est volontaire : on ne
+ * publie pas une fiche vide dans le carnet commun juste parce que quelqu'un
+ * planifiait sa semaine.
+ */
+export async function quickCreateRecipe(
+  input: unknown,
+): Promise<ActionResult<{ id: string; slug: string; title: string }>> {
+  try {
+    const user = await requireUser();
+
+    const parsed = quickRecipeSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        message: "Titre invalide.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+    const { title } = parsed.data;
+
+    const slug = await ensureUniqueSlug(title, async (candidate) => {
+      const existing = await db.recipe.findUnique({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+      return existing !== null;
+    });
+
+    const recipe = await db.recipe.create({
+      data: {
+        slug,
+        title,
+        authorId: user.id,
+        isComplete: false,
+      },
+      select: { id: true, slug: true, title: true },
+    });
+
+    revalidatePath("/recettes");
+    return { ok: true, data: recipe };
   } catch (error) {
     return toActionResult(error);
   }
@@ -148,6 +214,8 @@ export async function updateRecipe(
           prepMinutes: data.prepMinutes,
           cookMinutes: data.cookMinutes,
           difficulty: data.difficulty,
+          // Compléter un brouillon le rend public ; c'est le seul moyen de publier.
+          isComplete: computeIsComplete(data),
         },
       });
 

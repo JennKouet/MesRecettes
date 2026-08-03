@@ -127,10 +127,26 @@ const RECIPES = [
   },
 ] as const;
 
+/**
+ * Le seed fait deux choses très différentes :
+ *
+ *  - les TAGS sont des données de référence. Sans eux, les catégories du
+ *    formulaire de recette et les filtres de la liste sont vides : il faut les
+ *    poser partout, production comprise. L'upsert les rend rejouables sans
+ *    doublon.
+ *
+ *  - le compte de démonstration et ses recettes sont du contenu d'exemple. Son
+ *    mot de passe est en clair dans ce fichier versionné : le créer en
+ *    production ouvrirait un compte utilisable par quiconque lit le dépôt.
+ *
+ * D'où le défaut sûr : seuls les tags sont posés, et le contenu de démonstration
+ * exige un SEED_DEMO=1 explicite.
+ */
+const withDemoContent = process.env.SEED_DEMO === "1";
+
 async function main() {
   console.log("Seed — début");
 
-  // Tags : idempotent, on peut relancer le seed sans doublon.
   for (const tag of TAGS) {
     const slug = slugify(tag.name);
     await db.tag.upsert({
@@ -140,6 +156,14 @@ async function main() {
     });
   }
   console.log(`  ${TAGS.length} tags`);
+
+  if (!withDemoContent) {
+    console.log(
+      "  contenu de démonstration ignoré (SEED_DEMO=1 pour l'inclure en local)",
+    );
+    console.log("Seed — terminé");
+    return;
+  }
 
   // Utilisateur de démonstration.
   const demo = await db.user.upsert({

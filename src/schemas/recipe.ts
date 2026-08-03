@@ -86,6 +86,23 @@ export const recipeInputSchema = z.object({
   tagIds: z.array(z.string()).max(12, "12 catégories maximum"),
 });
 
+/**
+ * Création rapide depuis la page menu : le titre suffit.
+ *
+ * La recette créée ainsi est INCOMPLÈTE, donc invisible du public jusqu'à ce
+ * que son auteur y ajoute des ingrédients et des étapes via le formulaire
+ * complet — lequel exige les deux, si bien qu'enregistrer revient à publier.
+ */
+export const quickRecipeSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(3, "Au moins 3 caractères")
+    .max(140, "140 caractères maximum"),
+});
+
+export type QuickRecipeInput = z.infer<typeof quickRecipeSchema>;
+
 /** Ce que le formulaire manipule (avant transformation). */
 export type RecipeFormValues = z.input<typeof recipeInputSchema>;
 

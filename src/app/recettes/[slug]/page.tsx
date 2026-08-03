@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/session";
 import { DIFFICULTY_LABELS, formatMinutes } from "@/lib/format";
 import { TagPill } from "../../components/ui/TagPill";
 import { ButtonLink } from "../../components/ui/Button";
+import EmptyState from "../../components/ui/EmptyState";
 import IngredientList from "../../components/recipes/IngredientList";
 import StepList from "../../components/recipes/StepList";
 import DeleteRecipeButton from "../_components/DeleteRecipeButton";
@@ -27,11 +28,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function RecipeDetailPage({ params }: Props) {
   const { slug } = await params;
 
-  // Lecture publique : aucune session requise pour consulter une recette.
-  const [recipe, user] = await Promise.all([
-    getRecipeBySlug(slug),
-    getCurrentUser(),
-  ]);
+  // Lecture publique pour les recettes completes ; un brouillon n'est visible
+  // que de son auteur, d'ou le viewerId (getRecipeBySlug renvoie null sinon).
+  const user = await getCurrentUser();
+  const recipe = await getRecipeBySlug(slug, user?.id);
 
   if (!recipe) notFound();
 
@@ -42,6 +42,20 @@ export default async function RecipeDetailPage({ params }: Props) {
   return (
     <article className="flex flex-col gap-8">
       <header className="flex flex-col gap-4">
+        {/* getRecipeBySlug ne renvoie un brouillon qu'à son auteur : ce bandeau
+            ne s'affiche donc jamais pour un autre visiteur. */}
+        {!recipe.isComplete && (
+          <aside className="rounded-lg border border-safran-300 bg-safran-100 px-4 py-3">
+            <p className="font-title text-sm font-semibold tracking-wide text-safran-700 uppercase">
+              Brouillon — visible de vous seul
+            </p>
+            <p className="mt-1 text-sm text-encre-muted">
+              Cette recette a été créée depuis votre menu. Ajoutez-lui au moins
+              un ingrédient et une étape pour la publier dans le carnet.
+            </p>
+          </aside>
+        )}
+
         {recipe.tags.length > 0 && (
           <ul className="flex flex-wrap gap-1.5">
             {recipe.tags.map(({ tag }) => (
@@ -102,13 +116,28 @@ export default async function RecipeDetailPage({ params }: Props) {
         )}
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:items-start">
-        <IngredientList
-          ingredients={recipe.ingredients}
-          servings={recipe.servings}
+      {recipe.isComplete ? (
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:items-start">
+          <IngredientList
+            ingredients={recipe.ingredients}
+            servings={recipe.servings}
+          />
+          <StepList steps={recipe.steps} />
+        </div>
+      ) : (
+        // Un brouillon n'a ni ingrédients ni étapes : afficher deux listes vides
+        // n'apprendrait rien. On propose directement de la compléter.
+        <EmptyState
+          icon="✏️"
+          title="Cette recette est encore vide"
+          description="Vous l'avez créée à la volée depuis votre menu. Ajoutez-lui des ingrédients et des étapes quand vous aurez un moment."
+          action={
+            <ButtonLink href={`/recettes/${recipe.slug}/modifier`}>
+              Compléter la recette
+            </ButtonLink>
+          }
         />
-        <StepList steps={recipe.steps} />
-      </div>
+      )}
 
       <footer className="border-t border-bordure pt-4 text-sm text-encre-faint">
         Ajoutée par {recipe.author.name ?? "un cuisinier anonyme"}
