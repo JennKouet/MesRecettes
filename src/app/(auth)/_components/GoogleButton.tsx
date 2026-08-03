@@ -1,10 +1,15 @@
 import { signInWithGoogle } from "@/server/actions/oauth-actions";
+import { isGoogleConfigured } from "@/auth.config";
 
 /**
  * Formulaire minimal : le flux OAuth doit passer par une navigation serveur,
  * pas par un fetch. Fonctionne donc même sans JavaScript.
  */
 export default function GoogleButton() {
+  // Sans identifiants Google, le provider n'est pas enregistré : afficher le
+  // bouton mènerait à une erreur. On préfère ne rien montrer.
+  if (!isGoogleConfigured) return null;
+
   return (
     <form action={signInWithGoogle}>
       <button type="submit" className="btn btn-ghost w-full">

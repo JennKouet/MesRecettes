@@ -37,6 +37,7 @@ export default async function ModifierRecettePage({
     prepMinutes: recipe.prepMinutes ?? "",
     cookMinutes: recipe.cookMinutes ?? "",
     difficulty: recipe.difficulty,
+    imageUrl: recipe.imageUrl ?? "",
     // Un brouillon créé depuis le menu n'a ni ingrédient ni étape : on amorce
     // une ligne vide de chaque, sinon useFieldArray n'affiche aucun champ et il
     // n'y a plus rien à remplir.

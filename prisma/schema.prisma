@@ -105,7 +105,13 @@ model Recipe {
   cookMinutes Int?
   difficulty  Difficulty @default(FACILE)
   sourceUrl   String?
-  authorId    String
+
+  // URL publique de la photo sur Vercel Blob. Le fichier n'est PAS stocké en
+  // base : le plan Neon gratuit plafonne à 0,5 Go, quelques photos le
+  // rempliraient. La colonne ne garde que l'adresse.
+  imageUrl String?
+
+  authorId String
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
