@@ -71,6 +71,24 @@ Interface web d'inspection de la base, optionnelle :
 
 En production, ajoutez les mêmes entrées avec l'URL du déploiement.
 
+### Connexion Google sur les preview deployments
+
+Chaque preview a un hostname unique, et Google exige une URI de redirection déclarée à l'identique : il faudrait en ajouter une par PR. La connexion échoue sinon avec `Erreur 400 : redirect_uri_mismatch`.
+
+Auth.js prévoit un relais pour ce cas. Définissez sur Vercel :
+
+```
+AUTH_REDIRECT_PROXY_URL = https://<domaine-stable>/api/auth
+```
+
+Trois points à ne pas rater :
+
+- Le chemin `/api/auth` fait partie de la valeur, ce n'est pas seulement le domaine.
+- La variable doit être définie sur **Production *et* Preview**. C'est contre-intuitif, mais si elle manque côté stable le relais ne s'active pas : c'est la production qui sert de relais.
+- `AUTH_SECRET` doit être **identique** entre les deux environnements — c'est lui qui signe le paramètre `state` que les deux doivent pouvoir valider.
+
+La preview conserve alors son URL dans le `state` et envoie Google vers l'URL stable, qui valide puis renvoie l'utilisateur sur la preview. Une seule URI à déclarer chez Google, quel que soit le nombre de previews.
+
 ## Déploiement (Vercel + Neon)
 
 1. **Créez la base.** Le plus simple est de passer par Vercel : projet → onglet **Storage** → *Create Database* → **Neon**.
@@ -97,9 +115,20 @@ En production, ajoutez les mêmes entrées avec l'URL du déploiement.
    DIRECT_URL="<url-directe-neon>" yarn db:seed
    ```
    Sans `SEED_DEMO=1`, seuls les tags sont créés : le compte de démonstration, dont le mot de passe est en clair dans le dépôt, n'a rien à faire en production.
-4. Variables d'environnement Vercel : `DATABASE_URL` et `DATABASE_URL_UNPOOLED` (posées par l'intégration Neon), plus `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+4. **Créez le stockage des photos** : projet → **Storage** → *Create Database* → **Blob**. L'intégration pose `BLOB_READ_WRITE_TOKEN`. Sans lui l'application fonctionne, mais l'ajout de photo affiche un message d'erreur explicite.
+5. Variables d'environnement Vercel : `DATABASE_URL` et `DATABASE_URL_UNPOOLED` (posées par l'intégration Neon), `BLOB_READ_WRITE_TOKEN` (posée par l'intégration Blob), plus `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
    > **Ne définissez pas `AUTH_URL` sur Vercel.** Auth.js v5 déduit l'hôte des en-têtes de la requête, et active `AUTH_TRUST_HOST` tout seul dès qu'il détecte Vercel. En définir une casse les preview deployments, dont le hostname change à chaque déploiement — et si la valeur n'est pas une URL valide, `new URL()` lève `ERR_INVALID_URL` **dans le proxy**, ce qui fait tomber *toutes* les routes en 500.
+
+### Migrations et bases de preview
+
+L'intégration Neon crée une **branche de base dédiée à chaque preview**. Ces branches ne reçoivent aucune migration automatiquement : une preview construite après un changement de schéma échouerait en lisant une colonne absente chez elle.
+
+`scripts/migrate-preview.mjs`, branché sur la commande de build, applique donc `prisma migrate deploy` **quand `VERCEL_ENV` vaut `preview`, et uniquement là**.
+
+La production en est délibérément exclue. Migrer pendant un build est risqué — une migration qui échoue laisse l'application à moitié déployée. Sur une branche de preview jetable le risque est nul ; en production il toucherait de vrais utilisateurs, d'où l'application manuelle décrite plus haut.
+
+Le script ne bloque jamais le build : sans connexion directe disponible, il avertit et laisse passer, l'erreur applicative étant plus parlante qu'un échec de build.
 
 Le script `postinstall` lance `prisma generate` — il est indispensable : le client est généré dans `src/generated/` qui est gitignoré.
 
@@ -134,6 +163,12 @@ src/
 **`Menu.weekStart` est un `DATE` Postgres**, toujours normalisé au lundi à minuit UTC (`src/lib/week.ts`). Sans ça, un utilisateur dans un fuseau très à l'est verrait son lundi enregistré comme le dimanche précédent.
 
 **`Recipe.isComplete` pilote la visibilité publique.** Une recette créée à la volée depuis le menu n'a ni ingrédient ni étape : elle reste visible de son seul auteur jusqu'à ce qu'il la complète. Le drapeau est *dérivé* (au moins un ingrédient ET une étape) mais *stocké*, pour rester filtrable et indexable sans jointure ; il ne peut pas dériver puisque toutes les écritures passent par `createRecipe` / `updateRecipe` / `quickCreateRecipe`, qui le recalculent. Le formulaire complet exigeant les deux, **enregistrer via le formulaire revient à publier**. Le filtrage est concentré dans `src/server/queries/recipes.ts` : le paramètre `viewerId` vient toujours de la session, jamais de la requête HTTP, et l'omettre donne la vue strictement publique — le défaut sûr.
+
+**Les photos ne sont pas stockées en base.** Le plan Neon gratuit plafonne à 0,5 Go : quelques photos le rempliraient. Les fichiers vont sur Vercel Blob et `Recipe.imageUrl` ne garde que l'adresse.
+
+Le composant d'envoi réduit l'image dans le navigateur avant de l'envoyer, mais c'est une **nécessité pratique, pas une protection** : les fonctions Vercel refusent les corps de requête au-delà de 4,5 Mo et une photo de téléphone les dépasse souvent. La sécurité est entièrement dans `src/lib/image.ts`, qui re-décode et ré-encode systématiquement : ni le nom du fichier ni le type MIME déclaré ne sont pris en compte, seul le décodeur tranche. S'y ajoutent une liste blanche de formats (le SVG est exclu), un plafond de taille et un garde-fou anti-bombe de décompression.
+
+La suppression d'un blob vit dans `src/lib/blob.ts`, marqué `server-only` et **non** `"use server"` : en faire une Server Action l'exposerait comme un endpoint public capable d'effacer n'importe quel fichier du stockage.
 
 **Attention aux `loading.tsx` au-dessus d'une route dynamique.** Un `loading.tsx` crée une frontière Suspense : la réponse part en streaming avec un statut 200, et `notFound()` ne peut plus le corriger en 404. C'est pourquoi le squelette de la liste vit dans le groupe `src/app/recettes/(liste)/` — qui n'apparaît pas dans l'URL — plutôt que directement sous `recettes/`, où il couvrirait aussi `[slug]`.
 

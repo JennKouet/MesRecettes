@@ -138,7 +138,9 @@ export default function RecipePicker({
 
             {filtered.length === 0 && !canQuickCreate && (
               <p className="py-4 text-center text-sm text-encre-muted">
-                Aucune recette ne correspond.
+                {recipes.length === 0
+                  ? "Votre carnet est vide. Saisissez un titre ci-dessus pour créer une recette."
+                  : "Aucune recette ne correspond."}
               </p>
             )}
 

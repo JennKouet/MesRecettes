@@ -7,8 +7,6 @@ import { listRecipeOptions } from "@/server/queries/recipes";
 import { parseWeekParam, weekParam } from "@/lib/week";
 import WeekNav from "./_components/WeekNav";
 import MenuGrid from "./_components/MenuGrid";
-import EmptyState from "../components/ui/EmptyState";
-import { ButtonLink } from "../components/ui/Button";
 import CopyPreviousWeek from "./_components/CopyPreviousWeek";
 
 export const metadata: Metadata = { title: "Menu de la semaine" };
@@ -58,32 +56,35 @@ export default async function MenuPage({
         <WeekNav weekStart={weekStart} />
       </header>
 
-      {recipes.length === 0 ? (
-        <EmptyState
-          icon="📖"
-          title="Aucune recette à planifier"
-          description="Ajoutez d'abord une recette au carnet, vous pourrez ensuite la placer dans votre semaine."
-          action={<ButtonLink href="/recettes/nouvelle">Créer une recette</ButtonLink>}
-        />
-      ) : (
-        <>
-          <MenuGrid
-            semaine={semaine}
-            weekStart={weekStart}
-            menu={menu}
-            recipes={recipes}
-          />
-
-          <footer className="flex flex-wrap items-center gap-3 border-t border-bordure pt-4">
-            <p className="text-sm text-encre-muted">
-              {entryCount === 0
-                ? "Semaine vide."
-                : `${entryCount} repas planifié${entryCount > 1 ? "s" : ""}.`}
-            </p>
-            <CopyPreviousWeek semaine={semaine} />
-          </footer>
-        </>
+      {/* La grille s'affiche TOUJOURS, même sans aucune recette au carnet.
+          Remplir un créneau ne suppose pas qu'une recette existe déjà : on peut
+          en créer une à la volée depuis un simple titre, ou noter un repas libre
+          qui n'en crée aucune. Masquer la grille bloquait ces deux usages. */}
+      {recipes.length === 0 && (
+        <aside className="rounded-lg border border-safran-300 bg-safran-100 px-4 py-3">
+          <p className="text-sm text-encre-muted">
+            Votre carnet est encore vide. Vous pouvez tout de même planifier :
+            saisissez un titre dans un créneau pour créer la recette à la volée,
+            ou notez un repas libre (« restes », « restaurant »).
+          </p>
+        </aside>
       )}
+
+      <MenuGrid
+        semaine={semaine}
+        weekStart={weekStart}
+        menu={menu}
+        recipes={recipes}
+      />
+
+      <footer className="flex flex-wrap items-center gap-3 border-t border-bordure pt-4">
+        <p className="text-sm text-encre-muted">
+          {entryCount === 0
+            ? "Semaine vide."
+            : `${entryCount} repas planifié${entryCount > 1 ? "s" : ""}.`}
+        </p>
+        <CopyPreviousWeek semaine={semaine} />
+      </footer>
     </section>
   );
 }
