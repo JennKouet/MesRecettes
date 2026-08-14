@@ -2,8 +2,9 @@ import { formatQuantity, UNIT_LABELS } from "@/lib/format";
 import type { RecipeDetail } from "@/server/queries/recipes";
 
 /**
- * Les quantités sont alignées en colonne avec `tabular-nums` : les chiffres ont
- * alors tous la même largeur, donc les nombres s'empilent proprement.
+ * Les quantités démarrent au bord gauche de la carte et occupent une colonne
+ * d'au moins 6rem, ce qui aligne les noms d'ingrédients entre eux. `tabular-nums`
+ * donne la même largeur à tous les chiffres, donc les nombres s'empilent proprement.
  */
 export default function IngredientList({
   ingredients,
@@ -26,7 +27,7 @@ export default function IngredientList({
 
           return (
             <li key={ingredient.id} className="flex gap-3 py-2.5">
-              <span className="w-24 shrink-0 text-right font-semibold tabular-nums text-encre">
+              <span className="min-w-24 shrink-0 font-semibold tabular-nums text-encre">
                 {[quantity, unit].filter(Boolean).join(" ")}
               </span>
               <span className="text-encre">
