@@ -50,6 +50,7 @@ export const authConfig = {
 
       const isProtected =
         path.startsWith("/menu") ||
+        path === "/compte" ||
         path === "/recettes/nouvelle" ||
         /^\/recettes\/[^/]+\/modifier$/.test(path);
 

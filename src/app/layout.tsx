@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import type { Route } from "next";
+import Link from "next/link";
 import { Oswald, Poppins } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "./components/SiteHeader";
@@ -46,6 +48,23 @@ export default function RootLayout({
         <main className="mx-auto w-full max-w-5xl px-4 pt-8 pb-16 sm:px-6">
           {children}
         </main>
+        <footer className="border-t border-bordure bg-creme-100/70">
+          <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-5 text-sm text-encre-muted sm:px-6">
+            <span>© {new Date().getFullYear()} Mes Recettes</span>
+            <Link
+              href={"/mentions-legales" as Route}
+              className="underline underline-offset-2 hover:text-encre"
+            >
+              Mentions légales
+            </Link>
+            <Link
+              href={"/confidentialite" as Route}
+              className="underline underline-offset-2 hover:text-encre"
+            >
+              Politique de confidentialité
+            </Link>
+          </div>
+        </footer>
       </body>
     </html>
   );
