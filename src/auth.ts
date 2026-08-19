@@ -2,9 +2,14 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
 
 import { db } from "@/lib/db";
 import { authConfig } from "@/auth.config";
+import {
+  googleSwitchCookieName,
+  readGoogleSwitchCookieValue,
+} from "@/lib/google-account-switch";
 import { loginSchema } from "@/schemas/auth";
 
 // Hash factice, jamais égal à un mot de passe réel. Sert uniquement à faire
@@ -66,6 +71,91 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     ...authConfig.callbacks,
+    async signIn({ user, account }) {
+      if (account?.provider !== "google") return true;
+
+      const cookieStore = await cookies();
+      const switchCookie = cookieStore.get(googleSwitchCookieName)?.value;
+      const switchPayload = readGoogleSwitchCookieValue(switchCookie);
+      if (!switchPayload) return true;
+
+      const switchUserId = switchPayload.userId;
+      const providerAccountId = account.providerAccountId;
+      if (!providerAccountId) return false;
+
+      const conflict = await db.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider: "google",
+            providerAccountId,
+          },
+        },
+        select: { userId: true },
+      });
+      if (conflict && conflict.userId !== switchUserId) {
+        cookieStore.delete(googleSwitchCookieName);
+        return false;
+      }
+
+      await db.$transaction(async (tx) => {
+        const owner = await tx.user.findUnique({
+          where: { id: switchUserId },
+          select: { id: true },
+        });
+        if (!owner) throw new Error("Switch target user not found.");
+
+        await tx.account.deleteMany({
+          where: {
+            userId: switchUserId,
+            provider: "google",
+            NOT: { providerAccountId },
+          },
+        });
+
+        await tx.account.upsert({
+          where: {
+            provider_providerAccountId: {
+              provider: "google",
+              providerAccountId,
+            },
+          },
+          update: {
+            userId: switchUserId,
+            type: account.type,
+            refresh_token: account.refresh_token,
+            access_token: account.access_token,
+            expires_at: account.expires_at,
+            token_type: account.token_type,
+            scope: account.scope,
+            id_token: account.id_token,
+            session_state:
+              typeof account.session_state === "string"
+                ? account.session_state
+                : null,
+          },
+          create: {
+            userId: switchUserId,
+            type: account.type,
+            provider: "google",
+            providerAccountId,
+            refresh_token: account.refresh_token,
+            access_token: account.access_token,
+            expires_at: account.expires_at,
+            token_type: account.token_type,
+            scope: account.scope,
+            id_token: account.id_token,
+            session_state:
+              typeof account.session_state === "string"
+                ? account.session_state
+                : null,
+          },
+        });
+      });
+
+      user.id = switchUserId;
+      cookieStore.delete(googleSwitchCookieName);
+      return true;
+    },
     async jwt({ token, user }) {
       if (user?.id) token.id = user.id;
       return token;
