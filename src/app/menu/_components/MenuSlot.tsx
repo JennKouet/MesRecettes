@@ -119,18 +119,18 @@ export default function MenuSlot({
   const isFilled = Boolean(entry?.recipe || entry?.customLabel);
 
   return (
-    <div className="flex min-h-24 flex-1 flex-col gap-1 rounded-lg border border-bordure bg-white p-2">
+    <div className="flex h-full min-h-28 flex-col gap-1.5 rounded-lg border border-bordure bg-white p-2.5">
       <p className="font-title text-[0.65rem] font-semibold tracking-widest text-encre-faint uppercase">
         {SLOT_LABELS[slot]}
       </p>
 
       {isFilled ? (
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex flex-1 flex-col gap-1.5">
           {entry?.recipe ? (
             <>
               <Link
                 href={`/recettes/${entry.recipe.slug}`}
-                className="text-sm leading-snug font-medium text-encre no-underline hover:text-tomate-600"
+                className="break-words text-sm leading-snug font-medium text-encre no-underline hover:text-tomate-600"
               >
                 {entry.recipe.title}
               </Link>
@@ -141,19 +141,36 @@ export default function MenuSlot({
               )}
             </>
           ) : (
-            <p className="text-sm leading-snug font-medium text-encre-muted italic">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              disabled={isPending}
+              className="break-words text-left text-sm leading-snug font-medium text-encre-muted italic underline-offset-2 hover:text-tomate-600 hover:underline disabled:opacity-50"
+            >
               {entry?.customLabel}
-            </p>
+            </button>
           )}
 
-          <button
-            type="button"
-            onClick={clear}
-            disabled={isPending}
-            className="mt-auto self-start text-xs text-encre-faint underline hover:text-tomate-600 disabled:opacity-50"
-          >
-            Retirer
-          </button>
+          <div className="mt-auto flex flex-wrap gap-x-3 gap-y-1">
+            {entry?.customLabel && !entry.recipe && (
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                disabled={isPending}
+                className="self-start text-xs text-encre-faint underline hover:text-tomate-600 disabled:opacity-50"
+              >
+                Modifier
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clear}
+              disabled={isPending}
+              className="self-start text-xs text-encre-faint underline hover:text-tomate-600 disabled:opacity-50"
+            >
+              Retirer
+            </button>
+          </div>
         </div>
       ) : (
         <button
@@ -161,7 +178,7 @@ export default function MenuSlot({
           onClick={() => setPickerOpen(true)}
           disabled={isPending}
           aria-label={`Remplir le créneau — ${label}`}
-          className="flex flex-1 items-center justify-center rounded-md border border-dashed border-bordure text-sm text-encre-faint transition hover:border-tomate-300 hover:text-tomate-600 disabled:opacity-50"
+          className="flex min-h-16 flex-1 items-center justify-center rounded-md border border-dashed border-bordure text-sm text-encre-faint transition hover:border-tomate-300 hover:text-tomate-600 disabled:opacity-50"
         >
           + Ajouter
         </button>
@@ -184,6 +201,8 @@ export default function MenuSlot({
         onClose={() => setPickerOpen(false)}
         pending={isPending}
         error={isPickerOpen ? error : null}
+        initialMode={entry?.customLabel && !entry.recipe ? "libre" : "recette"}
+        initialCustomLabel={entry?.customLabel ?? ""}
       />
     </div>
   );

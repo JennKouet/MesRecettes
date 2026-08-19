@@ -38,6 +38,8 @@ export default function RecipePicker({
   onClose,
   pending,
   error,
+  initialMode = "recette",
+  initialCustomLabel = "",
 }: {
   domId: string;
   open: boolean;
@@ -49,6 +51,9 @@ export default function RecipePicker({
   onClose: () => void;
   pending?: boolean;
   error?: string | null;
+  /** Mode à l'ouverture — « libre » quand on édite un repas personnalisé. */
+  initialMode?: Mode;
+  initialCustomLabel?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
@@ -62,12 +67,12 @@ export default function RecipePicker({
     if (open && !dialog.open) {
       dialog.showModal();
       setQuery("");
-      setCustomLabel("");
-      setMode("recette");
+      setCustomLabel(initialCustomLabel);
+      setMode(initialMode);
     } else if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, initialCustomLabel, initialMode]);
 
   const trimmedQuery = query.trim();
 
@@ -212,7 +217,7 @@ export default function RecipePicker({
               disabled={pending || !customLabel.trim()}
               className="self-start"
             >
-              Noter ce repas
+              {initialCustomLabel ? "Enregistrer" : "Noter ce repas"}
             </Button>
           </form>
         )}
