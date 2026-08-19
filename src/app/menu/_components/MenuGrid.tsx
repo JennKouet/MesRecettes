@@ -10,8 +10,10 @@ import type { RecipeOption } from "./RecipePicker";
 const SLOTS: MealSlot[] = ["DEJEUNER", "DINER"];
 
 /**
- * Sept colonnes en large, sept cartes empilées en mobile.
- * Server Component : seules les cases individuelles sont interactives.
+ * Cartes ~2× plus larges qu'une grille à 7 colonnes : 2 colonnes dès `md`,
+ * 4 dès `lg` (la semaine passe sur 2 rangées). Subgrid aligne déjeuners /
+ * dîners sur chaque rangée. Server Component : seules les cases sont
+ * interactives.
  */
 export default function MenuGrid({
   semaine,
@@ -34,8 +36,9 @@ export default function MenuGrid({
 
   const today = new Date();
 
+  // Deux bandes de 3 lignes (en-tête / déjeuner / dîner) pour les 4+3 jours.
   return (
-    <div className="grid gap-3 lg:grid-cols-7">
+    <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:grid-rows-[auto_minmax(7rem,auto)_minmax(7rem,auto)_auto_minmax(7rem,auto)_minmax(7rem,auto)_auto_minmax(7rem,auto)_minmax(7rem,auto)_auto_minmax(7rem,auto)_minmax(7rem,auto)] lg:grid-cols-4 lg:grid-rows-[auto_minmax(7rem,auto)_minmax(7rem,auto)_auto_minmax(7rem,auto)_minmax(7rem,auto)]">
       {weekDays(weekStart).map(({ dayOfWeek, date }) => {
         const isToday = isSameDay(date, today);
 
@@ -43,7 +46,7 @@ export default function MenuGrid({
           <section
             key={dayOfWeek}
             aria-labelledby={`jour-${dayOfWeek}`}
-            className={`flex flex-col gap-2 rounded-xl border p-2 ${
+            className={`grid grid-rows-[auto_auto_auto] gap-2 rounded-xl border p-2 md:row-span-3 md:grid-rows-subgrid ${
               isToday
                 ? "border-tomate-300 bg-tomate-50"
                 : "border-bordure bg-creme-100"

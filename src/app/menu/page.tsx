@@ -44,7 +44,9 @@ export default async function MenuPage({
   const entryCount = menu?.entries.length ?? 0;
 
   return (
-    <section className="flex flex-col gap-6">
+    // Sort du max-w-5xl du layout pour laisser de la place aux cartes plus larges.
+    <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen px-4 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <header className="flex flex-col gap-4">
         <div>
           <p className="font-title text-sm font-semibold tracking-widest text-tomate-600 uppercase">
@@ -85,6 +87,7 @@ export default async function MenuPage({
         </p>
         <CopyPreviousWeek semaine={semaine} />
       </footer>
+      </div>
     </section>
   );
 }
