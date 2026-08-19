@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { getCurrentUser } from "@/lib/session";
 import { logoutAction } from "@/server/actions/auth-actions";
 
@@ -38,6 +39,9 @@ export default async function AuthMenu() {
       </span>
       <span className="sr-only">Connecté en tant que {user.name ?? user.email}</span>
 
+      <Link href={"/compte" as Route} className="btn btn-ghost">
+        Mon compte
+      </Link>
       <form action={logoutAction}>
         <button type="submit" className="btn btn-ghost">
           Déconnexion
