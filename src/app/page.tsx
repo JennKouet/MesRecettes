@@ -5,17 +5,16 @@ export default function Home() {
     <div className="flex flex-col gap-12">
       <section className="flex flex-col items-start gap-5 py-8">
         <span className="rounded-full bg-safran-100 px-3 py-1 font-title text-xs font-semibold tracking-widest text-safran-700 uppercase">
-          Carnet de cuisine
+          Recettes &amp; menus
         </span>
         <h1>
-          Toutes vos recettes,
+          Un atelier pour vos recettes,
           <br />
-          et le menu de la semaine.
+          un menu pour votre semaine.
         </h1>
         <p className="max-w-xl text-lg leading-relaxed text-encre-muted">
-          Rassemblez vos recettes de famille au même endroit, retrouvez-les par
-          ingrédient ou par catégorie, et planifiez vos repas de la semaine sans
-          y repenser trois fois.
+          Rassemblez vos recettes au même endroit, parcourez celles des autres,
+          et composez le menu de votre semaine.
         </p>
         <div className="mt-2 flex flex-wrap gap-3">
           <ButtonLink href="/recettes">Voir les recettes</ButtonLink>
@@ -25,7 +24,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-3">
         <Feature
           icon="📖"
           title="Des recettes structurées"
@@ -56,12 +55,14 @@ function Feature({
   description: string;
 }) {
   return (
-    <article className="card flex flex-col gap-2 p-6">
+    <article className="card flex h-full flex-col gap-2 p-6">
       <span aria-hidden className="text-2xl">
         {icon}
       </span>
       <h2 className="text-lg sm:text-xl">{title}</h2>
-      <p className="text-sm leading-relaxed text-encre-muted">{description}</p>
+      <p className="flex-1 text-sm leading-relaxed text-encre-muted">
+        {description}
+      </p>
     </article>
   );
 }

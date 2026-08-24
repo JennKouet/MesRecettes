@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MealSlot } from "@/generated/prisma/enums";
+import { capitalizeWords } from "@/lib/format";
 
 /**
  * Le client n'envoie JAMAIS de `menuId` ni de `menuEntryId`.
@@ -37,7 +38,8 @@ export const setCustomEntrySchema = z.object({
     .string()
     .trim()
     .min(1, "Indiquez ce que vous prévoyez")
-    .max(80, "80 caractères maximum"),
+    .max(80, "80 caractères maximum")
+    .transform(capitalizeWords),
 });
 
 export const clearMenuEntrySchema = z.object({

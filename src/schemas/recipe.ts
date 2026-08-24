@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Difficulty, Unit } from "@/generated/prisma/enums";
+import { capitalizeWords } from "@/lib/format";
 
 /**
  * Schéma unique, partagé entre react-hook-form (zodResolver, côté navigateur)
@@ -43,7 +44,8 @@ export const ingredientSchema = z.object({
     .string()
     .trim()
     .min(1, "Nom de l'ingrédient requis")
-    .max(120, "120 caractères maximum"),
+    .max(120, "120 caractères maximum")
+    .transform(capitalizeWords),
   note: optionalText,
 });
 

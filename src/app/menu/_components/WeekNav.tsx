@@ -6,12 +6,18 @@ import { formatWeekLabel, toWeekStart, weekParam } from "@/lib/week";
 import { withQuery } from "@/lib/routes";
 import { Button } from "@/app/components/ui/Button";
 
-export default function WeekNav({ weekStart }: { weekStart: Date }) {
+export default function WeekNav({
+  weekStart,
+  basePath = "/menu",
+}: {
+  weekStart: Date;
+  basePath?: "/menu" | "/courses";
+}) {
   const router = useRouter();
 
   function goTo(target: Date) {
     router.push(
-      withQuery("/menu", new URLSearchParams({ semaine: weekParam(target) })),
+      withQuery(basePath, new URLSearchParams({ semaine: weekParam(target) })),
     );
   }
 

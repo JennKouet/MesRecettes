@@ -23,11 +23,11 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: {
-    default: "Mes Recettes",
-    template: "%s · Mes Recettes",
+    default: "L'Atelier des Épicuriens",
+    template: "%s · L'Atelier des Épicuriens",
   },
   description:
-    "Vos recettes de famille et vos menus de la semaine, au même endroit.",
+    "Un atelier pour vos recettes, un menu pour votre semaine.",
 };
 
 export default function RootLayout({
@@ -50,7 +50,7 @@ export default function RootLayout({
         </main>
         <footer className="border-t border-bordure bg-creme-100/70">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-5 text-sm text-encre-muted sm:px-6">
-            <span>© {new Date().getFullYear()} Mes Recettes</span>
+            <span>© {new Date().getFullYear()} L&apos;Atelier des Épicuriens</span>
             <Link
               href={"/mentions-legales" as Route}
               className="underline underline-offset-2 hover:text-encre"

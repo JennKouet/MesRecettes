@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/session";
 import { getMenuForWeek } from "@/server/queries/menus";
 import { listRecipeOptions } from "@/server/queries/recipes";
 import { parseWeekParam, weekParam } from "@/lib/week";
+import { withQuery } from "@/lib/routes";
+import { ButtonLink } from "../components/ui/Button";
 import WeekNav from "./_components/WeekNav";
 import MenuGrid from "./_components/MenuGrid";
 import CopyPreviousWeek from "./_components/CopyPreviousWeek";
@@ -85,6 +87,12 @@ export default async function MenuPage({
             ? "Semaine vide."
             : `${entryCount} repas planifié${entryCount > 1 ? "s" : ""}.`}
         </p>
+        <ButtonLink
+          href={withQuery("/courses", new URLSearchParams({ semaine }))}
+          variant="ghost"
+        >
+          Liste de courses
+        </ButtonLink>
         <CopyPreviousWeek semaine={semaine} />
       </footer>
       </div>
