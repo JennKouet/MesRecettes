@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { ensureUniqueSlug } from "@/lib/slug";
+import { ensureUniqueSlug, slugify } from "@/lib/slug";
 import { deleteBlobQuietly } from "@/lib/blob";
 import {
   quickRecipeSchema,
@@ -204,20 +204,37 @@ export async function updateRecipe(
     }
     const data = parsed.data;
 
-    // Photo actuelle, relevée avant l'écriture : si elle change, l'ancienne
-    // devra être supprimée du stockage. Filtrée par authorId pour ne rien
-    // apprendre sur la recette d'un autre.
+    // Photo et slug actuels, relevés avant l'écriture. Filtrés par authorId
+    // pour ne rien apprendre sur la recette d'un autre.
     const previous = await db.recipe.findFirst({
       where: { id: recipeId, authorId: user.id },
-      select: { imageUrl: true },
+      select: { imageUrl: true, slug: true, title: true },
     });
+    if (!previous) throw new ForbiddenError();
 
-    const slug = await db.$transaction(async (tx) => {
+    // On ne recalcule l'URL que si le titre, une fois slugifié, a vraiment
+    // changé. Un simple « Tarte aux pommes » → « Tarte aux pommes ! » ne doit
+    // pas faire passer `tarte-aux-pommes-2` à `tarte-aux-pommes` (l'ancienne
+    // URL casserait sans raison). La recette en cours est exclue de isTaken
+    // pour ne pas se voir refuser son propre slug.
+    const slug =
+      slugify(data.title) === slugify(previous.title)
+        ? previous.slug
+        : await ensureUniqueSlug(data.title, async (candidate) => {
+            const existing = await db.recipe.findUnique({
+              where: { slug: candidate },
+              select: { id: true },
+            });
+            return existing !== null && existing.id !== recipeId;
+          });
+
+    await db.$transaction(async (tx) => {
       // La propriété est DANS le WHERE. Si la recette n'existe pas ou n'est pas
       // à cet utilisateur, count vaut 0 et rien n'a été écrit.
       const { count } = await tx.recipe.updateMany({
         where: { id: recipeId, authorId: user.id },
         data: {
+          slug,
           title: data.title,
           description: data.description,
           servings: data.servings,
@@ -233,22 +250,19 @@ export async function updateRecipe(
       if (count !== 1) throw new ForbiddenError();
 
       await replaceCollections(tx, recipeId, data);
-
-      const recipe = await tx.recipe.findUniqueOrThrow({
-        where: { id: recipeId },
-        select: { slug: true },
-      });
-      return recipe.slug;
     });
 
     // Après le commit seulement : si la transaction avait échoué, on aurait
     // supprimé la photo d'une recette restée inchangée.
-    if (previous?.imageUrl && previous.imageUrl !== data.imageUrl) {
+    if (previous.imageUrl && previous.imageUrl !== data.imageUrl) {
       await deleteBlobQuietly(previous.imageUrl);
     }
 
     revalidatePath("/recettes");
     revalidatePath(`/recettes/${slug}`);
+    if (slug !== previous.slug) {
+      revalidatePath(`/recettes/${previous.slug}`);
+    }
     return { ok: true, data: { slug } };
   } catch (error) {
     return toActionResult(error);
