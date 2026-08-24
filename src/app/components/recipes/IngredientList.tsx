@@ -1,4 +1,4 @@
-import { formatQuantity, UNIT_LABELS } from "@/lib/format";
+import { capitalizeWords, formatQuantity, UNIT_LABELS } from "@/lib/format";
 import type { RecipeDetail } from "@/server/queries/recipes";
 
 /**
@@ -31,7 +31,7 @@ export default function IngredientList({
                 {[quantity, unit].filter(Boolean).join(" ")}
               </span>
               <span className="text-encre">
-                {ingredient.name}
+                {capitalizeWords(ingredient.name)}
                 {ingredient.note && (
                   <span className="text-encre-faint">, {ingredient.note}</span>
                 )}

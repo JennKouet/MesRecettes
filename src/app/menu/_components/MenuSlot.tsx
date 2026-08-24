@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { MealSlot } from "@/generated/prisma/enums";
-import { SLOT_LABELS } from "@/lib/format";
+import { capitalizeWords, SLOT_LABELS } from "@/lib/format";
 import {
   clearMenuEntry,
   setCustomEntry,
@@ -147,7 +147,7 @@ export default function MenuSlot({
               disabled={isPending}
               className="break-words text-left text-sm leading-snug font-medium text-encre-muted italic underline-offset-2 hover:text-tomate-600 hover:underline disabled:opacity-50"
             >
-              {entry?.customLabel}
+              {capitalizeWords(entry?.customLabel ?? "")}
             </button>
           )}
 

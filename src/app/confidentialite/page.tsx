@@ -29,7 +29,8 @@ export default function ConfidentialitePage() {
         <section className="space-y-2">
           <h2 className="text-lg text-encre">2. Données collectées</h2>
           <p>
-            Lors de l&apos;utilisation de Mes Recettes, nous pouvons traiter :
+            Lors de l&apos;utilisation de L&apos;Atelier des Épicuriens, nous
+            pouvons traiter :
           </p>
           <ul className="list-disc space-y-1 pl-5">
             <li>les données de compte (email, nom, image si fournie) ;</li>

@@ -13,8 +13,11 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-bordure bg-creme/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="nav-brand">
-          Mes&nbsp;Recettes
+        <Link
+          href="/"
+          className="nav-brand text-lg leading-tight sm:text-xl"
+        >
+          L&apos;Atelier des Épicuriens
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
           <NavLinks />
