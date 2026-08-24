@@ -82,9 +82,9 @@ export default async function RecettesPage({
           />
         )
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe, index) => (
-            <li key={recipe.id} className="flex">
+            <li key={recipe.id} className="min-w-0">
               {/* Les trois premières tiennent dans la première rangée en large :
                   ce sont les seules visibles d'emblée. */}
               <RecipeCard recipe={recipe} priority={index < 3} />

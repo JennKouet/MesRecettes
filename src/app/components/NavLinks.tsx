@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
-const LINKS = [
+const LINKS: { label: string; href: Route }[] = [
   { label: "Recettes", href: "/recettes" },
   { label: "Menu", href: "/menu" },
-] as const;
+  { label: "Courses", href: "/courses" as Route },
+];
 
 /**
  * Seul composant client du header : il a besoin de usePathname pour l'état actif.
@@ -27,7 +29,10 @@ export default function NavLinks() {
               <Link
                 href={href}
                 aria-current={isActive ? "page" : undefined}
-                className={cn("nav-link", isActive && "nav-link-active")}
+                className={cn(
+                  "nav-link px-2 sm:px-3",
+                  isActive && "nav-link-active",
+                )}
               >
                 {label}
               </Link>

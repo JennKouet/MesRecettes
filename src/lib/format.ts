@@ -77,3 +77,30 @@ export function formatTotalTime(
   const total = (prepMinutes ?? 0) + (cookMinutes ?? 0);
   return formatMinutes(total);
 }
+
+/**
+ * Première lettre de chaque mot en majuscule.
+ * Le reste du mot est laissé tel quel, pour ne pas écraser un « PARMESAN »
+ * collé en majuscules. Les mots après un tiret ou une apostrophe sont
+ * traités aussi : « huile d'olive » → « Huile D'Olive ».
+ */
+export function capitalizeWords(value: string): string {
+  return value.replace(
+    /(^|[^\p{L}])(\p{L})/gu,
+    (_match, prefix: string, letter: string) =>
+      prefix + letter.toLocaleUpperCase("fr-FR"),
+  );
+}
+
+/** Ligne d'ingrédient : « 200 g Farine » ou simplement « Sel ». */
+export function formatIngredientLabel(
+  quantity: unknown,
+  unit: Unit | null | undefined,
+  name: string,
+): string {
+  const qty = formatQuantity(quantity);
+  const unitLabel = unit ? UNIT_LABELS[unit] : "";
+  const amount = [qty, unitLabel].filter(Boolean).join(" ");
+  const titled = capitalizeWords(name);
+  return amount ? `${amount} ${titled}` : titled;
+}
