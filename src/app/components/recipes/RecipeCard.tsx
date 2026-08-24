@@ -25,7 +25,7 @@ export default function RecipeCard({
   const totalTime = formatTotalTime(recipe.prepMinutes, recipe.cookMinutes);
 
   return (
-    <article className="card group flex flex-col overflow-hidden transition hover:border-tomate-300">
+    <article className="card group flex h-full w-full min-w-0 flex-col overflow-hidden transition hover:border-tomate-300">
       <Link href={`/recettes/${recipe.slug}`} className="flex flex-1 flex-col no-underline">
         {recipe.imageUrl ? (
           <div className="relative h-40 w-full overflow-hidden">

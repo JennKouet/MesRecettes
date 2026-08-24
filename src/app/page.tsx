@@ -24,7 +24,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Feature
           icon="📖"
           title="Des recettes structurées"
@@ -55,14 +55,12 @@ function Feature({
   description: string;
 }) {
   return (
-    <article className="card flex h-full flex-col gap-2 p-6">
+    <article className="card flex h-full w-full flex-col gap-2 p-6">
       <span aria-hidden className="text-2xl">
         {icon}
       </span>
       <h2 className="text-lg sm:text-xl">{title}</h2>
-      <p className="flex-1 text-sm leading-relaxed text-encre-muted">
-        {description}
-      </p>
+      <p className="text-sm leading-relaxed text-encre-muted">{description}</p>
     </article>
   );
 }
