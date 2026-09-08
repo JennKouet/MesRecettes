@@ -69,7 +69,7 @@ export default async function MenuPage({
           <p className="text-sm text-encre-muted">
             Votre carnet est encore vide. Vous pouvez tout de même planifier :
             saisissez un titre dans un créneau pour créer la recette à la volée,
-            ou notez un repas libre (« restes », « restaurant »).
+            ou notez un repas libre (entrée, plat, dessert facultatifs).
           </p>
         </aside>
       )}

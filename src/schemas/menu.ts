@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MealSlot } from "@/generated/prisma/enums";
-import { capitalizeWords } from "@/lib/format";
+import { capitalizeCourse, hasCustomMeal } from "@/lib/custom-meal";
 
 /**
  * Le client n'envoie JAMAIS de `menuId` ni de `menuEntryId`.
@@ -26,21 +26,27 @@ export const setMenuEntrySchema = z.object({
 });
 
 /**
- * Repas libre : du texte, sans recette (« restes », « restaurant », « chez
- * mamie »). Évite de créer des fiches parasites dans le carnet pour des repas
- * qui ne sont pas des recettes.
+ * Repas libre : entrée / plat / dessert facultatifs, sans fiche recette.
+ * Au moins un des trois champs doit être renseigné.
  */
-export const setCustomEntrySchema = z.object({
-  semaine: weekSchema,
-  dayOfWeek: z.number().int().min(1).max(7),
-  slot: z.enum(MealSlot),
-  customLabel: z
-    .string()
-    .trim()
-    .min(1, "Indiquez ce que vous prévoyez")
-    .max(80, "80 caractères maximum")
-    .transform(capitalizeWords),
-});
+const optionalCourse = z
+  .string()
+  .max(80, "80 caractères maximum")
+  .nullish()
+  .transform((value) => capitalizeCourse(value ?? ""));
+
+export const setCustomEntrySchema = z
+  .object({
+    semaine: weekSchema,
+    dayOfWeek: z.number().int().min(1).max(7),
+    slot: z.enum(MealSlot),
+    entree: optionalCourse,
+    plat: optionalCourse,
+    dessert: optionalCourse,
+  })
+  .refine((value) => hasCustomMeal(value), {
+    message: "Indiquez au moins une entrée, un plat ou un dessert",
+  });
 
 export const clearMenuEntrySchema = z.object({
   semaine: weekSchema,

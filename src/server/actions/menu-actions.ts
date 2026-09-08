@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { subWeeks } from "date-fns";
 
 import { db } from "@/lib/db";
+import { toActionResult, type ActionResult } from "@/lib/errors";
 import { requireUser } from "@/lib/session";
 import { parseWeekParam, weekParam } from "@/lib/week";
 import {
@@ -12,7 +13,7 @@ import {
   setMenuEntrySchema,
   weekSchema,
 } from "@/schemas/menu";
-import { toActionResult, type ActionResult } from "@/lib/errors";
+import { composeCustomLabel } from "@/lib/custom-meal";
 
 /**
  * ─────────────────────────────────────────────────────────────────────────
@@ -80,7 +81,13 @@ export async function setMenuEntry(
       where: {
         menuId_dayOfWeek_slot: { menuId: menu.id, dayOfWeek, slot },
       },
-      update: { recipeId, customLabel: null },
+      update: {
+        recipeId,
+        customLabel: null,
+        customEntree: null,
+        customPlat: null,
+        customDessert: null,
+      },
       create: { menuId: menu.id, dayOfWeek, slot, recipeId },
     });
 
@@ -92,9 +99,7 @@ export async function setMenuEntry(
 }
 
 /**
- * Repas libre : du texte dans le créneau, sans recette associée.
- * Pour « restes », « restaurant », « chez mamie » — des repas qui n'ont pas
- * vocation à devenir des fiches du carnet.
+ * Repas libre : entrée / plat / dessert, sans recette associée.
  */
 export async function setCustomEntry(
   input: unknown,
@@ -106,20 +111,36 @@ export async function setCustomEntry(
     if (!parsed.success) {
       return {
         ok: false,
-        message: "Données invalides.",
+        message:
+          parsed.error.issues[0]?.message ?? "Données invalides.",
         fieldErrors: parsed.error.flatten().fieldErrors,
       };
     }
-    const { semaine, dayOfWeek, slot, customLabel } = parsed.data;
+    const { semaine, dayOfWeek, slot, entree, plat, dessert } = parsed.data;
     const weekStart = parseWeekParam(semaine);
+    const customLabel = composeCustomLabel({ entree, plat, dessert });
 
     const menu = await resolveOwnMenu(db, user.id, weekStart);
 
     await db.menuEntry.upsert({
       where: { menuId_dayOfWeek_slot: { menuId: menu.id, dayOfWeek, slot } },
       // recipeId remis à null : un repas libre remplace une recette planifiée.
-      update: { customLabel, recipeId: null },
-      create: { menuId: menu.id, dayOfWeek, slot, customLabel },
+      update: {
+        recipeId: null,
+        customLabel,
+        customEntree: entree,
+        customPlat: plat,
+        customDessert: dessert,
+      },
+      create: {
+        menuId: menu.id,
+        dayOfWeek,
+        slot,
+        customLabel,
+        customEntree: entree,
+        customPlat: plat,
+        customDessert: dessert,
+      },
     });
 
     revalidatePath("/menu");
@@ -183,6 +204,9 @@ export async function copyPreviousWeek(
             slot: true,
             recipeId: true,
             customLabel: true,
+            customEntree: true,
+            customPlat: true,
+            customDessert: true,
             servings: true,
           },
         },

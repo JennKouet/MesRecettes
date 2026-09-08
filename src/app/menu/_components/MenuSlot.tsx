@@ -5,7 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { MealSlot } from "@/generated/prisma/enums";
-import { capitalizeWords, SLOT_LABELS } from "@/lib/format";
+import { SLOT_LABELS } from "@/lib/format";
+import {
+  CUSTOM_MEAL_FIELDS,
+  hasCustomMeal,
+  type CustomMealCourses,
+} from "@/lib/custom-meal";
 import {
   clearMenuEntry,
   setCustomEntry,
@@ -16,6 +21,9 @@ import RecipePicker, { type RecipeOption } from "./RecipePicker";
 
 export type SlotEntry = {
   recipe: { id: string; slug: string; title: string; isComplete: boolean } | null;
+  customEntree: string | null;
+  customPlat: string | null;
+  customDessert: string | null;
   customLabel: string | null;
 } | null;
 
@@ -90,10 +98,10 @@ export default function MenuSlot({
     });
   }
 
-  function noteCustom(customLabel: string) {
+  function noteCustom(courses: CustomMealCourses) {
     setError(null);
     startTransition(async () => {
-      const result = await setCustomEntry({ ...coordinate, customLabel });
+      const result = await setCustomEntry({ ...coordinate, ...courses });
       if (!result.ok) {
         setError(result.message);
         return;
@@ -115,11 +123,17 @@ export default function MenuSlot({
     });
   }
 
+  const courses: CustomMealCourses = {
+    entree: entry?.customEntree ?? null,
+    plat: entry?.customPlat ?? null,
+    dessert: entry?.customDessert ?? null,
+  };
+  const isCustomMeal = !entry?.recipe && hasCustomMeal(courses);
+  const isFilled = Boolean(entry?.recipe || isCustomMeal || entry?.customLabel);
   const label = `${SLOT_LABELS[slot]} — ${dayLabel}`;
-  const isFilled = Boolean(entry?.recipe || entry?.customLabel);
 
   return (
-    <div className="flex h-full min-h-28 flex-col gap-1.5 rounded-lg border border-bordure bg-white p-2.5">
+    <div className="flex h-full min-h-32 flex-col gap-1.5 rounded-lg border border-bordure bg-white p-2.5">
       <p className="font-title text-[0.65rem] font-semibold tracking-widest text-encre-faint uppercase">
         {SLOT_LABELS[slot]}
       </p>
@@ -147,12 +161,27 @@ export default function MenuSlot({
               disabled={isPending}
               className="break-words text-left text-sm leading-snug font-medium text-encre-muted italic underline-offset-2 hover:text-tomate-600 hover:underline disabled:opacity-50"
             >
-              {capitalizeWords(entry?.customLabel ?? "")}
+              {isCustomMeal ? (
+                <span className="flex flex-col gap-0.5 not-italic">
+                  {CUSTOM_MEAL_FIELDS.map(({ key, label: courseLabel }) =>
+                    courses[key] ? (
+                      <span key={key} className="leading-snug">
+                        <span className="font-title text-[0.65rem] font-semibold tracking-wide text-encre-faint uppercase">
+                          {courseLabel}
+                        </span>{" "}
+                        <span className="text-encre">{courses[key]}</span>
+                      </span>
+                    ) : null,
+                  )}
+                </span>
+              ) : (
+                entry?.customLabel
+              )}
             </button>
           )}
 
           <div className="mt-auto flex flex-wrap gap-x-3 gap-y-1">
-            {entry?.customLabel && !entry.recipe && (
+            {(isCustomMeal || entry?.customLabel) && !entry?.recipe && (
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
@@ -201,8 +230,12 @@ export default function MenuSlot({
         onClose={() => setPickerOpen(false)}
         pending={isPending}
         error={isPickerOpen ? error : null}
-        initialMode={entry?.customLabel && !entry.recipe ? "libre" : "recette"}
-        initialCustomLabel={entry?.customLabel ?? ""}
+        initialMode={
+          !entry?.recipe && (isCustomMeal || Boolean(entry?.customLabel))
+            ? "libre"
+            : "recette"
+        }
+        initialCourses={courses}
       />
     </div>
   );
