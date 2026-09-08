@@ -237,6 +237,11 @@ model MenuEntry {
   // Nullable + SetNull : supprimer une recette ne troue pas les menus passés.
   recipeId    String?
   customLabel String?
+  // Repas libre structuré : chaque cours est facultatif, au moins un est
+  // exigé à l'enregistrement (cf. setCustomEntrySchema).
+  customEntree  String?
+  customPlat    String?
+  customDessert String?
   servings    Int?
 
   menu   Menu    @relation(fields: [menuId], references: [id], onDelete: Cascade)

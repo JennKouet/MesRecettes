@@ -24,6 +24,9 @@ export async function getMenuForWeek(weekStart: Date) {
           dayOfWeek: true,
           slot: true,
           customLabel: true,
+          customEntree: true,
+          customPlat: true,
+          customDessert: true,
           recipe: {
             select: {
               id: true,
