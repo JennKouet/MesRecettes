@@ -77,7 +77,13 @@ export default function MenuGrid({
                   dayLabel={`${DAY_LABELS[dayOfWeek]} ${format(date, "d MMMM", { locale: fr })}`}
                   entry={
                     entry
-                      ? { recipe: entry.recipe, customLabel: entry.customLabel }
+                      ? {
+                          recipe: entry.recipe,
+                          customEntree: entry.customEntree,
+                          customPlat: entry.customPlat,
+                          customDessert: entry.customDessert,
+                          customLabel: entry.customLabel,
+                        }
                       : null
                   }
                   recipes={recipes}

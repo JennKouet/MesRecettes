@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Input } from "@/app/components/ui/Field";
+import { FormRow, Input } from "@/app/components/ui/Field";
 import { Button } from "@/app/components/ui/Button";
+import {
+  CUSTOM_MEAL_FIELDS,
+  hasCustomMeal,
+  type CustomMealCourses,
+} from "@/lib/custom-meal";
 
 export type RecipeOption = {
   id: string;
@@ -20,7 +25,7 @@ type Mode = "recette" | "libre";
  * Trois façons de remplir un créneau, sans quitter la page menu :
  *   1. choisir une recette existante ;
  *   2. créer à la volée une recette qui n'existe pas encore (titre seul) ;
- *   3. noter un repas libre (« restes »), qui ne crée aucune fiche.
+ *   3. noter un repas libre (entrée / plat / dessert facultatifs), sans fiche.
  */
 export default function RecipePicker({
   /**
@@ -39,7 +44,7 @@ export default function RecipePicker({
   pending,
   error,
   initialMode = "recette",
-  initialCustomLabel = "",
+  initialCourses,
 }: {
   domId: string;
   open: boolean;
@@ -47,18 +52,22 @@ export default function RecipePicker({
   recipes: RecipeOption[];
   onSelect: (recipeId: string) => void;
   onQuickCreate: (title: string) => void;
-  onCustom: (label: string) => void;
+  onCustom: (courses: CustomMealCourses) => void;
   onClose: () => void;
   pending?: boolean;
   error?: string | null;
   /** Mode à l'ouverture — « libre » quand on édite un repas personnalisé. */
   initialMode?: Mode;
-  initialCustomLabel?: string;
+  initialCourses?: CustomMealCourses;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("recette");
-  const [customLabel, setCustomLabel] = useState("");
+  const [courses, setCourses] = useState({
+    entree: "",
+    plat: "",
+    dessert: "",
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -67,12 +76,16 @@ export default function RecipePicker({
     if (open && !dialog.open) {
       dialog.showModal();
       setQuery("");
-      setCustomLabel(initialCustomLabel);
+      setCourses({
+        entree: initialCourses?.entree ?? "",
+        plat: initialCourses?.plat ?? "",
+        dessert: initialCourses?.dessert ?? "",
+      });
       setMode(initialMode);
     } else if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open, initialCustomLabel, initialMode]);
+  }, [open, initialCourses, initialMode]);
 
   const trimmedQuery = query.trim();
 
@@ -89,6 +102,13 @@ export default function RecipePicker({
     !recipes.some(
       (recipe) => recipe.title.toLowerCase() === trimmedQuery.toLowerCase(),
     );
+
+  const canNoteCustom = hasCustomMeal({
+    entree: courses.entree.trim(),
+    plat: courses.plat.trim(),
+    dessert: courses.dessert.trim(),
+  });
+  const isEditingCustom = hasCustomMeal(initialCourses ?? {});
 
   return (
     <dialog
@@ -192,32 +212,41 @@ export default function RecipePicker({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              if (customLabel.trim()) onCustom(customLabel.trim());
+              if (!canNoteCustom) return;
+              onCustom({
+                entree: courses.entree,
+                plat: courses.plat,
+                dessert: courses.dessert,
+              });
             }}
             className="flex flex-col gap-3"
           >
-            <div>
-              <label htmlFor={`${domId}-custom`} className="sr-only">
-                Intitulé du repas
-              </label>
-              <Input
-                id={`${domId}-custom`}
-                value={customLabel}
-                onChange={(event) => setCustomLabel(event.target.value)}
-                placeholder="Restes, restaurant, chez mamie…"
-                maxLength={80}
-              />
-              <p className="mt-2 text-xs text-encre-faint">
-                Aucune recette ne sera créée : c&apos;est juste une note dans
-                votre semaine.
-              </p>
-            </div>
+            {CUSTOM_MEAL_FIELDS.map(({ key, label, placeholder }) => (
+              <FormRow key={key} label={label} htmlFor={`${domId}-${key}`}>
+                <Input
+                  id={`${domId}-${key}`}
+                  value={courses[key]}
+                  onChange={(event) =>
+                    setCourses((current) => ({
+                      ...current,
+                      [key]: event.target.value,
+                    }))
+                  }
+                  placeholder={placeholder}
+                  maxLength={80}
+                />
+              </FormRow>
+            ))}
+            <p className="text-xs text-encre-faint">
+              Chaque champ est facultatif, mais au moins un est nécessaire.
+              Aucune recette ne sera créée.
+            </p>
             <Button
               type="submit"
-              disabled={pending || !customLabel.trim()}
+              disabled={pending || !canNoteCustom}
               className="self-start"
             >
-              {initialCustomLabel ? "Enregistrer" : "Noter ce repas"}
+              {isEditingCustom ? "Enregistrer" : "Noter ce repas"}
             </Button>
           </form>
         )}
