@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { Route } from "next";
 import Link from "next/link";
 import { Oswald, Poppins } from "next/font/google";
@@ -28,6 +28,11 @@ export const metadata: Metadata = {
   },
   description:
     "Un atelier pour vos recettes, un menu pour votre semaine.",
+  applicationName: "L'Atelier des Épicuriens",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#c9502f",
 };
 
 export default function RootLayout({
