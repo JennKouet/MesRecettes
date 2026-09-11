@@ -9,14 +9,17 @@ import SearchBar from "../../components/recipes/SearchBar";
 import TagFilter from "../../components/recipes/TagFilter";
 import EmptyState from "../../components/ui/EmptyState";
 import { ButtonLink } from "../../components/ui/Button";
+import Pagination from "../../components/ui/Pagination";
 
 export const metadata: Metadata = { title: "Recettes" };
+
+const PAGE_SIZE = 12;
 
 /** Next 16 : `searchParams` est une Promise. */
 export default async function RecettesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tag?: string | string[] }>;
+  searchParams: Promise<{ q?: string; tag?: string | string[]; page?: string }>;
 }) {
   const params = await searchParams;
   const selectedTags = params.tag
@@ -24,16 +27,24 @@ export default async function RecettesPage({
       ? params.tag
       : [params.tag]
     : [];
+  const page = Math.max(1, Number(params.page) || 1);
 
   // La session est lue AVANT la liste : listRecipes en a besoin pour inclure
   // les brouillons de l'utilisateur, invisibles de tous les autres.
   const user = await getCurrentUser();
 
-  const [recipes, tags] = await Promise.all([
-    listRecipes({ query: params.q, tags: selectedTags, viewerId: user?.id }),
+  const [{ recipes, total }, tags] = await Promise.all([
+    listRecipes({
+      query: params.q,
+      tags: selectedTags,
+      viewerId: user?.id,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
     listTags(),
   ]);
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const isFiltered = Boolean(params.q?.trim()) || selectedTags.length > 0;
 
   return (
@@ -42,9 +53,9 @@ export default async function RecettesPage({
         <div>
           <h1>Recettes</h1>
           <p className="mt-2 text-encre-muted">
-            {recipes.length === 0
+            {total === 0
               ? "Aucune recette"
-              : `${recipes.length} recette${recipes.length > 1 ? "s" : ""}`}
+              : `${total} recette${total > 1 ? "s" : ""}`}
             {isFiltered ? " correspondant à votre recherche" : ""}
           </p>
         </div>
@@ -60,7 +71,7 @@ export default async function RecettesPage({
         </div>
       </Suspense>
 
-      {recipes.length === 0 ? (
+      {total === 0 ? (
         isFiltered ? (
           <EmptyState
             icon="🔍"
@@ -82,15 +93,24 @@ export default async function RecettesPage({
           />
         )
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((recipe, index) => (
-            <li key={recipe.id} className="min-w-0">
-              {/* Les trois premières tiennent dans la première rangée en large :
-                  ce sont les seules visibles d'emblée. */}
-              <RecipeCard recipe={recipe} priority={index < 3} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recipes.map((recipe, index) => (
+              <li key={recipe.id} className="min-w-0">
+                {/* Les trois premières tiennent dans la première rangée en large :
+                    ce sont les seules visibles d'emblée. */}
+                <RecipeCard recipe={recipe} priority={index < 3} />
+              </li>
+            ))}
+          </ul>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            basePath="/recettes"
+            searchParams={params}
+          />
+        </>
       )}
     </div>
   );
